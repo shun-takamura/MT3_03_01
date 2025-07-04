@@ -19,6 +19,22 @@
 
 const char kWindowTitle[] = "LC1C_14_タカムラシュン_タイトル";
 
+typedef struct Spring {
+	Vector3 anchor;
+	float naturelLendth;
+	float stiffness;
+	float dempingCoefficient;
+}Spring;
+
+typedef struct Ball {
+	Vector3 position;
+	Vector3 velocity;
+	Vector3 acceleration;
+	float mass;
+	float radius;
+	unsigned int color;
+}Ball;
+
 // 行列をベクトルに変換する関数
 Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix);
 
@@ -96,6 +112,10 @@ void UpdateCameraByMouse(Vector3& cameraTranslate, Vector3& cameraRotate);
 
 void DrawSphere(const Vector3& center, float radius, const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix, uint32_t color);
 
+float Length(const Vector3& v);
+
+Vector3 Normalize(const Vector3& v);
+
 Vector3 Add(const Vector3& v1, const Vector3& v2);
 
 Vector3 Subtract(const Vector3& v1, const Vector3& v2);
@@ -135,18 +155,26 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	char keys[256] = { 0 };
 	char preKeys[256] = { 0 };
 
-	Vector3 a = { 0.2f,1.0f,0.0f };
-	Vector3 b = { 2.4f,3.1f,1.2f };
-	Vector3 rotate = { 0.4f,1.43f,-0.8f };
-	Matrix4x4 rotateMatrixX = MakeRotateXMatrix(rotate);
-	Matrix4x4 rotateMatrixY = MakeRotateYMatrix(rotate);
-	Matrix4x4 rotateMatrixZ = MakeRotateZMatrix(rotate);
+	Vector3 rotate{ 0.0f,0.0f,0.0f };
+	Vector3 translate{ 0.0f,0.0f,0.0f };
 
-	Vector3 c = a + b;
-	Vector3 d = a - b;
-	Vector3 e = a * 2.4f;
+	Vector3 cameraRotate = { 0.26f, 0.0f, 0.0f };
+	Vector3 cameraTranslate = { 0.0f, 1.9f, -6.49f };
 
-	Matrix4x4 rotateMatrix = rotateMatrixX * rotateMatrixY * rotateMatrixZ;
+	Spring spring{};
+	spring.anchor = { 0.0f,0.0f,0.0f };
+	spring.naturelLendth = 1.0f;
+	spring.stiffness = 100.0f;
+	spring.dempingCoefficient = 2.0f;
+
+	Ball ball{};
+	ball.position = { 1.5f,0.0f,0.0f };
+	ball.mass = 2.0f;
+	ball.radius = 0.05f;
+	ball.color = BLUE;
+
+	float deltaTime = 1.0f / 60.0f;
+	int isStarted = false;
 
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
@@ -161,6 +189,31 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓更新処理ここから
 		///
 		
+		UpdateCameraByMouse(cameraTranslate, cameraRotate);
+
+		Matrix4x4 cameraMatrix = MakeAffineMatrix({ 1.0f, 1.0f, 1.0f }, cameraRotate, cameraTranslate);
+		Matrix4x4 viewMatrix = Inverse(cameraMatrix);
+		Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix(0.45f, 1280.0f / 720.0f, 0.1f, 100.0f);
+		Matrix4x4 viewProjectionMatrix = Multiply(viewMatrix, projectionMatrix);
+		Matrix4x4 viewportMatrix = MakeViewportMatrix(0, 0, 1280, 720, 0.0f, 1.0f);
+
+		if (isStarted) {
+			Vector3 diff = ball.position - spring.anchor;
+			float length = Length(diff);
+			if (length != 0.0f) {
+				Vector3 direction = Normalize(diff);
+				Vector3 restPosition = spring.anchor + direction * spring.naturelLendth;
+				Vector3 displacement = length * (ball.position - restPosition);
+				Vector3 restoringForce = -spring.stiffness * displacement;
+				Vector3 dampingForce = -spring.dempingCoefficient * ball.velocity;
+				Vector3 force = restoringForce + dampingForce;
+				ball.acceleration = force / ball.mass;
+			}
+
+			ball.velocity = ball.velocity + ball.acceleration * deltaTime;
+			ball.position = ball.position + ball.velocity * deltaTime;
+		}
+
 		///
 		/// ↑更新処理ここまで
 		///
@@ -169,18 +222,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓描画処理ここから
 		///
 
-		ImGui::Begin("Window");
+		// グリッドの描画
+		DrawGrid(viewProjectionMatrix, viewportMatrix);
 
-		ImGui::Text("c:%f,%f,%f", c.x, c.y, c.z);
-		ImGui::Text("d:%f,%f,%f", d.x, d.y, d.z);
-		ImGui::Text("e:%f,%f,%f", e.x, e.y, e.z);
+		DrawSphere(ball.position, ball.radius, viewProjectionMatrix, viewportMatrix, ball.color);
 
-		ImGui::Text("matrix:\n%f,%f,%f,%f\n%f,%f,%f,%f\n%f,%f,%f,%f\n%f,%f,%f,%f\n",
-			rotateMatrix.m[0][0], rotateMatrix.m[0][1], rotateMatrix.m[0][2], rotateMatrix.m[0][3],
-			rotateMatrix.m[1][0], rotateMatrix.m[1][1], rotateMatrix.m[1][2], rotateMatrix.m[1][3],
-			rotateMatrix.m[2][0], rotateMatrix.m[2][1], rotateMatrix.m[2][2], rotateMatrix.m[2][3],
-			rotateMatrix.m[3][0], rotateMatrix.m[3][1], rotateMatrix.m[3][2], rotateMatrix.m[3][3]);
-
+		ImGui::Begin("Control");
+		if (ImGui::Button("Start Ball")) {
+			isStarted = true;
+		}
 		ImGui::End();
 
 		///
@@ -839,6 +889,24 @@ void DrawSphere(const Vector3& center, float radius, const Matrix4x4& viewProjec
 			Novice::DrawLine((int)a.x, (int)a.y, (int)c.x, (int)c.y, color);
 		}
 	}
+}
+
+float Length(const Vector3& v)
+{
+	float length;
+
+	length = sqrtf(powf(v.x, 2.0f) + powf(v.y, 2.0f) + powf(v.z, 2.0f));
+
+	return length;
+}
+
+Vector3 Normalize(const Vector3& v)
+{
+	Vector3 normalizedV;
+
+	normalizedV = { v.x / Length(v),v.y / Length(v),v.z / Length(v) };
+
+	return normalizedV;
 }
 
 Vector3 Add(const Vector3& v1, const Vector3& v2)
