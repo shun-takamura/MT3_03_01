@@ -96,6 +96,35 @@ void UpdateCameraByMouse(Vector3& cameraTranslate, Vector3& cameraRotate);
 
 void DrawSphere(const Vector3& center, float radius, const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix, uint32_t color);
 
+Vector3 Add(const Vector3& v1, const Vector3& v2);
+
+Vector3 Subtract(const Vector3& v1, const Vector3& v2);
+
+Vector3 Multiply(const float& i, const Vector3& v1);
+
+Matrix4x4 Add(Matrix4x4 matrix1, Matrix4x4 matrix2);
+
+Matrix4x4 Subtract(Matrix4x4 matrix1, Matrix4x4 matrix2);
+
+// X回転行列作成関数
+Matrix4x4 MakeRotateXMatrix(Vector3 rotate);
+
+// Y回転行列作成関数
+Matrix4x4 MakeRotateYMatrix(Vector3 rotate);
+
+// Z回転行列作成関数
+Matrix4x4 MakeRotateZMatrix(Vector3 rotate);
+
+// オーバーロード
+Vector3 operator+(const Vector3& v1, const Vector3& v2) { return Add(v1, v2); }
+Vector3 operator-(const Vector3& v1, const Vector3& v2) { return Subtract(v1, v2); }
+Vector3 operator*(const float& i, const Vector3& v1) { return Multiply(i, v1); }
+Vector3 operator*(const Vector3& v1, const float& i) { return i * v1; }
+Vector3 operator/(const Vector3& v1, const float& i) { return Multiply(1.0f / i, v1); }
+Matrix4x4 operator+(Matrix4x4 matrix1, Matrix4x4 matrix2) { return Add(matrix1, matrix2); }
+Matrix4x4 operator-(Matrix4x4 matrix1, Matrix4x4 matrix2) { return Subtract(matrix1, matrix2); }
+Matrix4x4 operator*(Matrix4x4 matrix1, Matrix4x4 matrix2) { return Multiply(matrix1, matrix2); }
+
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
@@ -106,26 +135,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	char keys[256] = { 0 };
 	char preKeys[256] = { 0 };
 
-	Vector3 cameraRotate = { 0.26f, 0.0f, 0.0f };
-	Vector3 cameraTranslate = { 0.0f, 1.9f, -6.49f };
+	Vector3 a = { 0.2f,1.0f,0.0f };
+	Vector3 b = { 2.4f,3.1f,1.2f };
+	Vector3 rotate = { 0.4f,1.43f,-0.8f };
+	Matrix4x4 rotateMatrixX = MakeRotateXMatrix(rotate);
+	Matrix4x4 rotateMatrixY = MakeRotateYMatrix(rotate);
+	Matrix4x4 rotateMatrixZ = MakeRotateZMatrix(rotate);
 
-	Vector3 translates[3]{
-		{0.2f,1.0f,0.0f},
-		{0.4f,0.0f,0.0f},
-		{0.3f,0.0f,0.0f}
-	};
+	Vector3 c = a + b;
+	Vector3 d = a - b;
+	Vector3 e = a * 2.4f;
 
-	Vector3 rotates[3]{
-		{0.0f,0.0f,-6.8f},
-		{0.0f,0.0f,-1.4f},
-		{0.0f,0.0f,0.0f}
-	};
-
-	Vector3 scales[3]{
-		{1.0f,1.0f,1.0f},
-		{1.0f,1.0f,1.0f},
-		{1.0f,1.0f,1.0f}
-	};
+	Matrix4x4 rotateMatrix = rotateMatrixX * rotateMatrixY * rotateMatrixZ;
 
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
@@ -139,37 +160,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		///
 		/// ↓更新処理ここから
 		///
-
-		UpdateCameraByMouse(cameraTranslate, cameraRotate);
-
-		Matrix4x4 cameraMatrix = MakeAffineMatrix({ 1.0f, 1.0f, 1.0f }, cameraRotate, cameraTranslate);
-		Matrix4x4 viewMatrix = Inverse(cameraMatrix);
-		Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix(0.45f, 1280.0f / 720.0f, 0.1f, 100.0f);
-		Matrix4x4 viewProjectionMatrix = Multiply(viewMatrix, projectionMatrix);
-		Matrix4x4 viewportMatrix = MakeViewportMatrix(0, 0, 1280, 720, 0.0f, 1.0f);
-
-		// 各ノードのローカル行列
-		Matrix4x4 localMatrix[3];
-		for (int i = 0; i < 3; i++) {
-			localMatrix[i] = MakeAffineMatrix(scales[i], rotates[i], translates[i]);
-		}
-
-		// ワールド行列（階層構造の構築）
-		// shoulder = 親無し
-		Matrix4x4 worldMatrix[3];
-		worldMatrix[0] = localMatrix[0];  // shoulder
-
-		// elbow = shoulderの子
-		worldMatrix[1] = Multiply(localMatrix[1], worldMatrix[0]);
-
-		// wrist = elbowの子
-		worldMatrix[2] = Multiply(localMatrix[2], worldMatrix[1]);
-
-		// 各スフィアの中心位置（ワールド座標系へ変換）
-		Vector3 shoulderPos = Transform({ 0, 0, 0 }, worldMatrix[0]);
-		Vector3 elbowPos = Transform({ 0, 0, 0 }, worldMatrix[1]);
-		Vector3 wristPos = Transform({ 0, 0, 0 }, worldMatrix[2]);
-
+		
 		///
 		/// ↑更新処理ここまで
 		///
@@ -178,24 +169,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓描画処理ここから
 		///
 
-		// グリッドの描画
-		DrawGrid(viewProjectionMatrix, viewportMatrix);
+		ImGui::Begin("Window");
 
-		// 関節を球で描画。[0]が肩[1]が肘[2]が手首
-		DrawSphere(shoulderPos, 0.05f, viewProjectionMatrix, viewportMatrix, 0xFF0000FF); // 赤：肩
-		DrawSphere(elbowPos, 0.05f, viewProjectionMatrix, viewportMatrix, 0x00FF00FF);   // 緑：肘
-		DrawSphere(wristPos, 0.05f, viewProjectionMatrix, viewportMatrix, 0x0000FFFF);   // 青：手
+		ImGui::Text("c:%f,%f,%f", c.x, c.y, c.z);
+		ImGui::Text("d:%f,%f,%f", d.x, d.y, d.z);
+		ImGui::Text("e:%f,%f,%f", e.x, e.y, e.z);
 
-		ImGui::Begin("Bezier Controller");
-		ImGui::SetWindowSize(ImVec2(400, 300)); // 幅400, 高さ300
-		ImGui::SliderFloat3("shoulderTranslate", &translates[0].x, -2.0f, 2.0f);
-		ImGui::SliderFloat3("shoulderRotate", &rotates[0].x, -2.0f, 2.0f);
-		ImGui::SliderFloat3("elbowTranslate", &translates[1].x, -2.0f, 2.0f);
-		ImGui::SliderFloat3("elbowRotate", &rotates[1].x, -2.0f, 2.0f);
-		ImGui::SliderFloat3("handTranslate", &translates[2].x, -2.0f, 2.0f);
-		ImGui::SliderFloat3("handRotate", &rotates[2].x, -2.0f, 2.0f);
-		ImGui::DragFloat3("Rotate", &cameraRotate.x, 0.01f);
-		ImGui::SliderFloat3("Translate", &cameraTranslate.x, -10.0f, 10.0f);
+		ImGui::Text("matrix:\n%f,%f,%f,%f\n%f,%f,%f,%f\n%f,%f,%f,%f\n%f,%f,%f,%f\n",
+			rotateMatrix.m[0][0], rotateMatrix.m[0][1], rotateMatrix.m[0][2], rotateMatrix.m[0][3],
+			rotateMatrix.m[1][0], rotateMatrix.m[1][1], rotateMatrix.m[1][2], rotateMatrix.m[1][3],
+			rotateMatrix.m[2][0], rotateMatrix.m[2][1], rotateMatrix.m[2][2], rotateMatrix.m[2][3],
+			rotateMatrix.m[3][0], rotateMatrix.m[3][1], rotateMatrix.m[3][2], rotateMatrix.m[3][3]);
+
 		ImGui::End();
 
 		///
@@ -214,6 +199,87 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// ライブラリの終了
 	Novice::Finalize();
 	return 0;
+}
+
+Matrix4x4 MakeRotateXMatrix(Vector3 rotate)
+{
+	// Xの回転行列
+	Matrix4x4 rotateMatrixX;
+	rotateMatrixX.m[0][0] = 1.0f;
+	rotateMatrixX.m[0][1] = 0.0f;
+	rotateMatrixX.m[0][2] = 0.0f;
+	rotateMatrixX.m[0][3] = 0.0f;
+
+	rotateMatrixX.m[1][0] = 0.0f;
+	rotateMatrixX.m[1][1] = cosf(rotate.x);
+	rotateMatrixX.m[1][2] = sinf(rotate.x);
+	rotateMatrixX.m[1][3] = 0.0f;
+
+	rotateMatrixX.m[2][0] = 0.0f;
+	rotateMatrixX.m[2][1] = -sinf(rotate.x);
+	rotateMatrixX.m[2][2] = cosf(rotate.x);
+	rotateMatrixX.m[2][3] = 0.0f;
+
+	rotateMatrixX.m[3][0] = 0.0f;
+	rotateMatrixX.m[3][1] = 0.0f;
+	rotateMatrixX.m[3][2] = 0.0f;
+	rotateMatrixX.m[3][3] = 1.0f;
+
+	return rotateMatrixX;
+}
+
+Matrix4x4 MakeRotateYMatrix(Vector3 rotate)
+{
+	// Yの回転行列
+	Matrix4x4 rotateMatrixY;
+	rotateMatrixY.m[0][0] = cosf(rotate.y);
+	rotateMatrixY.m[0][1] = 0.0f;
+	rotateMatrixY.m[0][2] = -sinf(rotate.y);
+	rotateMatrixY.m[0][3] = 0.0f;
+
+	rotateMatrixY.m[1][0] = 0.0f;
+	rotateMatrixY.m[1][1] = 1.0f;
+	rotateMatrixY.m[1][2] = 0.0f;
+	rotateMatrixY.m[1][3] = 0.0f;
+
+	rotateMatrixY.m[2][0] = sinf(rotate.y);
+	rotateMatrixY.m[2][1] = 0.0f;
+	rotateMatrixY.m[2][2] = cosf(rotate.y);
+	rotateMatrixY.m[2][3] = 0.0f;
+
+	rotateMatrixY.m[3][0] = 0.0f;
+	rotateMatrixY.m[3][1] = 0.0f;
+	rotateMatrixY.m[3][2] = 0.0f;
+	rotateMatrixY.m[3][3] = 1.0f;
+
+	return rotateMatrixY;
+}
+
+Matrix4x4 MakeRotateZMatrix(Vector3 rotate)
+{
+	// Zの回転行列
+	Matrix4x4 rotateMatrixZ;
+	rotateMatrixZ.m[0][0] = cosf(rotate.z);
+	rotateMatrixZ.m[0][1] = sinf(rotate.z);
+	rotateMatrixZ.m[0][2] = 0.0f;
+	rotateMatrixZ.m[0][3] = 0.0f;
+
+	rotateMatrixZ.m[1][0] = -sinf(rotate.z);
+	rotateMatrixZ.m[1][1] = cosf(rotate.z);
+	rotateMatrixZ.m[1][2] = 0.0f;
+	rotateMatrixZ.m[1][3] = 0.0f;
+
+	rotateMatrixZ.m[2][0] = 0.0f;
+	rotateMatrixZ.m[2][1] = 0.0f;
+	rotateMatrixZ.m[2][2] = 1.0f;
+	rotateMatrixZ.m[2][3] = 0.0f;
+
+	rotateMatrixZ.m[3][0] = 0.0f;
+	rotateMatrixZ.m[3][1] = 0.0f;
+	rotateMatrixZ.m[3][2] = 0.0f;
+	rotateMatrixZ.m[3][3] = 1.0f;
+
+	return rotateMatrixZ;
 }
 
 Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix)
@@ -773,6 +839,93 @@ void DrawSphere(const Vector3& center, float radius, const Matrix4x4& viewProjec
 			Novice::DrawLine((int)a.x, (int)a.y, (int)c.x, (int)c.y, color);
 		}
 	}
+}
+
+Vector3 Add(const Vector3& v1, const Vector3& v2)
+{
+	Vector3 result;
+
+	result.x = v1.x + v2.x;
+	result.y = v1.y + v2.y;
+	result.z = v1.z + v2.z;
+
+	return result;
+}
+
+Vector3 Subtract(const Vector3& v1, const Vector3& v2)
+{
+	Vector3 result;
+
+	result.x = v1.x - v2.x;
+	result.y = v1.y - v2.y;
+	result.z = v1.z - v2.z;
+
+	return result;
+}
+
+Vector3 Multiply(const float& i, const Vector3& v1)
+{
+	Vector3 result;
+
+	result.x = v1.x * i;
+	result.y = v1.y * i;
+	result.z = v1.z * i;
+
+	return result;
+}
+
+Matrix4x4 Add(Matrix4x4 matrix1, Matrix4x4 matrix2)
+{
+	Matrix4x4 result;
+
+	result.m[0][0] = matrix1.m[0][0] + matrix2.m[0][0];
+	result.m[0][1] = matrix1.m[0][1] + matrix2.m[0][1];
+	result.m[0][2] = matrix1.m[0][2] + matrix2.m[0][2];
+	result.m[0][3] = matrix1.m[0][3] + matrix2.m[0][3];
+
+	result.m[1][0] = matrix1.m[1][0] + matrix2.m[1][0];
+	result.m[1][1] = matrix1.m[1][1] + matrix2.m[1][1];
+	result.m[1][2] = matrix1.m[1][2] + matrix2.m[1][2];
+	result.m[1][3] = matrix1.m[1][3] + matrix2.m[1][3];
+
+	result.m[2][0] = matrix1.m[2][0] + matrix2.m[2][0];
+	result.m[2][1] = matrix1.m[2][1] + matrix2.m[2][1];
+	result.m[2][2] = matrix1.m[2][2] + matrix2.m[2][2];
+	result.m[2][3] = matrix1.m[2][3] + matrix2.m[2][3];
+
+	result.m[3][0] = matrix1.m[3][0] + matrix2.m[3][0];
+	result.m[3][1] = matrix1.m[3][1] + matrix2.m[3][1];
+	result.m[3][2] = matrix1.m[3][2] + matrix2.m[3][2];
+	result.m[3][3] = matrix1.m[3][3] + matrix2.m[3][3];
+
+	return result;
+}
+
+Matrix4x4 Subtract(Matrix4x4 matrix1, Matrix4x4 matrix2)
+{
+	Matrix4x4 result;
+
+	result.m[0][0] = matrix1.m[0][0] - matrix2.m[0][0];
+	result.m[0][1] = matrix1.m[0][1] - matrix2.m[0][1];
+	result.m[0][2] = matrix1.m[0][2] - matrix2.m[0][2];
+	result.m[0][3] = matrix1.m[0][3] - matrix2.m[0][3];
+
+	result.m[1][0] = matrix1.m[1][0] - matrix2.m[1][0];
+	result.m[1][1] = matrix1.m[1][1] - matrix2.m[1][1];
+	result.m[1][2] = matrix1.m[1][2] - matrix2.m[1][2];
+	result.m[1][3] = matrix1.m[1][3] - matrix2.m[1][3];
+
+	result.m[2][0] = matrix1.m[2][0] - matrix2.m[2][0];
+	result.m[2][1] = matrix1.m[2][1] - matrix2.m[2][1];
+	result.m[2][2] = matrix1.m[2][2] - matrix2.m[2][2];
+	result.m[2][3] = matrix1.m[2][3] - matrix2.m[2][3];
+
+	result.m[3][0] = matrix1.m[3][0] - matrix2.m[3][0];
+	result.m[3][1] = matrix1.m[3][1] - matrix2.m[3][1];
+	result.m[3][2] = matrix1.m[3][2] - matrix2.m[3][2];
+	result.m[3][3] = matrix1.m[3][3] - matrix2.m[3][3];
+
+	return result;
 }
 
 Matrix4x4 MakePerspectiveFovMatrix(float fovY, float aspectRatio, float nearClip, float farClip)
