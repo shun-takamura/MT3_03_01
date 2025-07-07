@@ -35,6 +35,14 @@ typedef struct Ball {
 	unsigned int color;
 }Ball;
 
+struct ConicalPendulum {
+	Vector3 anchor;
+	float length;
+	float halfApexAngle;
+	float angle;
+	float angularVelocity;
+};
+
 // 行列をベクトルに変換する関数
 Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix);
 
@@ -161,14 +169,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Vector3 cameraRotate = { 0.26f, 0.0f, 0.0f };
 	Vector3 cameraTranslate = { 0.0f, 1.9f, -6.49f };
 
-	float angle = 0.5f; // ラジアン（約30度）
-	float angularVelocity = 3.14f; // ラジアン毎秒(今回はπ毎秒なので2秒で1周(2π)する)
-	float radius = 0.8f;
-	Vector3 center = { 0.0f, 1.0f, 0.0f };
-
-	float angularAcceleration = 0.0f;  // 角加速度
-	float length = radius;             // 紐の長さ（固定）
-	const float g = 9.8f;              // 重力加速度
+	ConicalPendulum conicalPendulum{};
+	conicalPendulum.anchor = { 0.0f, 1.0f, 0.0f };
+	conicalPendulum.length = 0.8f;
+	conicalPendulum.halfApexAngle = 0.5f;  // 角度（ラジアン）
+	conicalPendulum.angle = 0.0f;
+	conicalPendulum.angularVelocity = 0.0f;
 
 	Ball ball{};
 	ball.position = { 0.0f,0.2f,0.0f };
@@ -201,19 +207,24 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Matrix4x4 viewportMatrix = MakeViewportMatrix(0, 0, 1280, 720, 0.0f, 1.0f);
 
 		if (isStarted) {
-			// θ'' = -(g / l) * sin(θ)
-			angularAcceleration = -g / length * sinf(angle);
+			// 円錐振り子の角速度を計算
+			conicalPendulum.angularVelocity = sqrt(
+				9.8f / (conicalPendulum.length * cosf(conicalPendulum.halfApexAngle))
+			);
 
-			// 角速度と角度を更新
-			angularVelocity += angularAcceleration * deltaTime;
-			angle += angularVelocity * deltaTime;
+			// 角度を更新
+			conicalPendulum.angle += conicalPendulum.angularVelocity * deltaTime;
 
-			// 紐の先の位置に変換（yが下方向）
-			ball.position.x = center.x + sinf(angle) * length;
-			ball.position.y = center.y - cosf(angle) * length;
-			ball.position.z = center.z;
+			// 半径・高さ
+			float radius = sinf(conicalPendulum.halfApexAngle) * conicalPendulum.length;
+			float height = cosf(conicalPendulum.halfApexAngle) * conicalPendulum.length;
+
+			// ボブの位置を更新
+			ball.position.x = conicalPendulum.anchor.x + cosf(conicalPendulum.angle) * radius;
+			ball.position.y = conicalPendulum.anchor.y - height;
+			ball.position.z = conicalPendulum.anchor.z + sinf(conicalPendulum.angle) * radius;
+
 		}
-
 
 		///
 		/// ↑更新処理ここまで
@@ -229,9 +240,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		DrawSphere(ball.position, ball.radius, viewProjectionMatrix, viewportMatrix, ball.color);
 
 		ImGui::Begin("Control");
+
 		if (ImGui::Button("Start Ball")) {
 			isStarted = true;
 		}
+
+		// 紐の長さを調整（0.1〜2.0）
+		ImGui::SliderFloat("Length", &conicalPendulum.length, 0.1f, 2.0f);
+
+		// 半頂角を調整（0.01〜1.56ラジアン ≒ 1〜89度）
+		ImGui::SliderFloat("Apex Angle (rad)", &conicalPendulum.halfApexAngle, 0.01f, 1.56f);
+		
 		ImGui::End();
 
 		///
