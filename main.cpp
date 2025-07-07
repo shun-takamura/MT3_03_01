@@ -161,13 +161,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Vector3 cameraRotate = { 0.26f, 0.0f, 0.0f };
 	Vector3 cameraTranslate = { 0.0f, 1.9f, -6.49f };
 
-	float angle = 0.0f;
+	float angle = 0.5f; // ラジアン（約30度）
 	float angularVelocity = 3.14f; // ラジアン毎秒(今回はπ毎秒なので2秒で1周(2π)する)
 	float radius = 0.8f;
-	Vector3 center = { 0.0f, 0.0f, 0.0f };
+	Vector3 center = { 0.0f, 1.0f, 0.0f };
+
+	float angularAcceleration = 0.0f;  // 角加速度
+	float length = radius;             // 紐の長さ（固定）
+	const float g = 9.8f;              // 重力加速度
 
 	Ball ball{};
-	ball.position = { 0.8f,0.0f,0.0f };
+	ball.position = { 0.0f,0.2f,0.0f };
 	ball.mass = 2.0f;
 	ball.radius = 0.05f;
 	ball.color = WHITE;
@@ -197,12 +201,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Matrix4x4 viewportMatrix = MakeViewportMatrix(0, 0, 1280, 720, 0.0f, 1.0f);
 
 		if (isStarted) {
+			// θ'' = -(g / l) * sin(θ)
+			angularAcceleration = -g / length * sinf(angle);
+
+			// 角速度と角度を更新
+			angularVelocity += angularAcceleration * deltaTime;
 			angle += angularVelocity * deltaTime;
 
-			// 円周上の位置を計算（XY平面上に回る）
-			ball.position.x = center.x + radius * cosf(angle);
-			ball.position.y = center.y + radius * sinf(angle);
-			ball.position.z = 0.0f;
+			// 紐の先の位置に変換（yが下方向）
+			ball.position.x = center.x + sinf(angle) * length;
+			ball.position.y = center.y - cosf(angle) * length;
+			ball.position.z = center.z;
 		}
 
 
