@@ -161,17 +161,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Vector3 cameraRotate = { 0.26f, 0.0f, 0.0f };
 	Vector3 cameraTranslate = { 0.0f, 1.9f, -6.49f };
 
-	Spring spring{};
-	spring.anchor = { 0.0f,0.0f,0.0f };
-	spring.naturelLendth = 1.0f;
-	spring.stiffness = 100.0f;
-	spring.dempingCoefficient = 2.0f;
+	float angle = 0.0f;
+	float angularVelocity = 3.14f; // ラジアン毎秒(今回はπ毎秒なので2秒で1周(2π)する)
+	float radius = 0.8f;
+	Vector3 center = { 0.0f, 0.0f, 0.0f };
 
 	Ball ball{};
-	ball.position = { 1.5f,0.0f,0.0f };
+	ball.position = { 0.8f,0.0f,0.0f };
 	ball.mass = 2.0f;
 	ball.radius = 0.05f;
-	ball.color = BLUE;
+	ball.color = WHITE;
 
 	float deltaTime = 1.0f / 60.0f;
 	int isStarted = false;
@@ -198,21 +197,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Matrix4x4 viewportMatrix = MakeViewportMatrix(0, 0, 1280, 720, 0.0f, 1.0f);
 
 		if (isStarted) {
-			Vector3 diff = ball.position - spring.anchor;
-			float length = Length(diff);
-			if (length != 0.0f) {
-				Vector3 direction = Normalize(diff);
-				Vector3 restPosition = spring.anchor + direction * spring.naturelLendth;
-				Vector3 displacement = length * (ball.position - restPosition);
-				Vector3 restoringForce = -spring.stiffness * displacement;
-				Vector3 dampingForce = -spring.dempingCoefficient * ball.velocity;
-				Vector3 force = restoringForce + dampingForce;
-				ball.acceleration = force / ball.mass;
-			}
+			angle += angularVelocity * deltaTime;
 
-			ball.velocity = ball.velocity + ball.acceleration * deltaTime;
-			ball.position = ball.position + ball.velocity * deltaTime;
+			// 円周上の位置を計算（XY平面上に回る）
+			ball.position.x = center.x + radius * cosf(angle);
+			ball.position.y = center.y + radius * sinf(angle);
+			ball.position.z = 0.0f;
 		}
+
 
 		///
 		/// ↑更新処理ここまで
