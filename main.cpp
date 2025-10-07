@@ -172,6 +172,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	ball.mass = 2.0f;
 	ball.radius = 0.05f;
 	ball.color = WHITE;
+	float kickStrength = 1.5f; // 蹴りの強さ
 
 	float deltaTime = 1.0f / 60.0f;
 	int isStarted = true;
@@ -242,7 +243,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 			// --- 振り子フェーズ ---
 			if (keys[DIK_SPACE] && !preKeys[DIK_SPACE]) {
-				float kickStrength = 3.0f; // 蹴りの強さ
 				pendulum.angularVelocity += kickStrength;
 			}
 
