@@ -44,6 +44,7 @@ struct Pendulum {
 	float angularVelocity;     // 角速度
 	float angularVelocityMax;
 	float angularAcceleration; // 角加速度
+	unsigned int color;
 };
 
 // 行列をベクトルに変換する関数
@@ -171,11 +172,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	ball.decelerationRate = 0.98f;
 	ball.mass = 2.0f;
 	ball.radius = 0.05f;
-	ball.color = WHITE;
+	ball.color = 0xFF0000FF;
 	float kickStrength = 1.5f; // 蹴りの強さ
 
 	float deltaTime = 1.0f / 60.0f;
-	int isStarted = true;
 
 	// ひもが切れたかどうか
 	bool isCut = false;
@@ -190,6 +190,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	pendulum.angularVelocity = 0.0f;
 	pendulum.angularAcceleration = 0.0f;
 	pendulum.angularVelocityMax = 20.0f;
+	pendulum.color = 0xFFFFFFFF;
 
 	// 減衰係数（小さいほど長く揺れる、大きいほどすぐ止まる）
 	float damping = 0.25f;
@@ -324,13 +325,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		DrawSphere(ball.position, ball.radius, viewProjectionMatrix, viewportMatrix, ball.color);
 
-		DrawSphere(pendulum.anchor, ball.radius, viewProjectionMatrix, viewportMatrix, RED);
-
-		ImGui::Begin("Control");
-		if (ImGui::Button("Start Ball")) {
-			isStarted = true;
-		}
-		ImGui::End();
+		DrawSphere(pendulum.anchor, ball.radius, viewProjectionMatrix, viewportMatrix, pendulum.color);
 
 		Novice::ScreenPrintf(0, 0, "pendulum.velocity:%.2f", pendulum.angularVelocity);
 
