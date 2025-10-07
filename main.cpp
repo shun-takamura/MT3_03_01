@@ -30,10 +30,21 @@ typedef struct Ball {
 	Vector3 position;
 	Vector3 velocity;
 	Vector3 acceleration;
+	float decelerationRate;
 	float mass;
 	float radius;
 	unsigned int color;
 }Ball;
+
+// Pendulum構造体
+struct Pendulum {
+	Vector3 anchor;            // 固定された端の位置
+	float length;              // 紐の長さ
+	float angle;               // 現在の角度（ラジアン）
+	float angularVelocity;     // 角速度
+	float angularVelocityMax;
+	float angularAcceleration; // 角加速度
+};
 
 // 行列をベクトルに変換する関数
 Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix);
@@ -155,29 +166,48 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	char keys[256] = { 0 };
 	char preKeys[256] = { 0 };
 
-	Vector3 rotate{ 0.0f,0.0f,0.0f };
-	Vector3 translate{ 0.0f,0.0f,0.0f };
-
-	Vector3 cameraRotate = { 0.26f, 0.0f, 0.0f };
-	Vector3 cameraTranslate = { 0.0f, 1.9f, -6.49f };
-
-	float angle = 0.5f; // ラジアン（約30度）
-	float angularVelocity = 3.14f; // ラジアン毎秒(今回はπ毎秒なので2秒で1周(2π)する)
-	float radius = 0.8f;
-	Vector3 center = { 0.0f, 1.0f, 0.0f };
-
-	float angularAcceleration = 0.0f;  // 角加速度
-	float length = radius;             // 紐の長さ（固定）
-	const float g = 9.8f;              // 重力加速度
-
 	Ball ball{};
 	ball.position = { 0.0f,0.2f,0.0f };
+	ball.decelerationRate = 0.98f;
 	ball.mass = 2.0f;
 	ball.radius = 0.05f;
 	ball.color = WHITE;
 
 	float deltaTime = 1.0f / 60.0f;
-	int isStarted = false;
+	int isStarted = true;
+
+	// ひもが切れたかどうか
+	bool isCut = false;
+	// 切れた後のボールの速度
+	Vector3 ballVelocity{ 0.0f, 0.0f, 0.0f };
+
+	// 初期化
+	Pendulum pendulum;
+	pendulum.anchor = { 0.0f, 1.0f, 0.0f };
+	pendulum.length = 0.8f;
+	pendulum.angle = 0.0f;              // 初期角度
+	pendulum.angularVelocity = 0.0f;
+	pendulum.angularAcceleration = 0.0f;
+	pendulum.angularVelocityMax = 20.0f;
+
+	// 減衰係数（小さいほど長く揺れる、大きいほどすぐ止まる）
+	float damping = 0.25f;
+
+	Vector3 rotate{ 0.0f,0.0f,0.0f };
+	Vector3 translate{ 0.0f,0.0f,0.0f };
+
+	Vector3 cameraRotate = { 0.0f, 0.0f, 0.0f };
+	Vector3 cameraTranslate = { 0.0f,0.0f, -10.0f };
+
+	// --- カメラ初期化のところに追加 ---
+	Vector3 baseCameraTranslate = cameraTranslate;  // 現在のカメラ基準位置
+	Vector3 anchorAtCut;                            // 切断時のアンカー位置（基準）
+
+	Vector3 cameraTarget = pendulum.anchor;// カメラの注視点
+	Vector3 targetGoal = pendulum.anchor; // カメラが次に向かう座標
+	float cameraLerpSpeed = 0.05f;         // 0.05〜0.2くらいで調整
+
+	Vector3 cameraOffset = { 0.0f,0.0f,-10.0f };
 
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
@@ -191,7 +221,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		///
 		/// ↓更新処理ここから
 		///
-		
+
+		// カメラの処理
+
+		cameraTranslate = cameraTarget + cameraOffset;
+
+		cameraTarget = Leap(cameraTarget, targetGoal, cameraLerpSpeed);
+
 		UpdateCameraByMouse(cameraTranslate, cameraRotate);
 
 		Matrix4x4 cameraMatrix = MakeAffineMatrix({ 1.0f, 1.0f, 1.0f }, cameraRotate, cameraTranslate);
@@ -200,20 +236,80 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Matrix4x4 viewProjectionMatrix = Multiply(viewMatrix, projectionMatrix);
 		Matrix4x4 viewportMatrix = MakeViewportMatrix(0, 0, 1280, 720, 0.0f, 1.0f);
 
-		if (isStarted) {
-			// θ'' = -(g / l) * sin(θ)
-			angularAcceleration = -g / length * sinf(angle);
+		if (!isCut) {
+			// カメラの注視点をアンカーに設定
+			targetGoal = pendulum.anchor;
 
-			// 角速度と角度を更新
-			angularVelocity += angularAcceleration * deltaTime;
-			angle += angularVelocity * deltaTime;
+			// --- 振り子フェーズ ---
+			if (keys[DIK_SPACE] && !preKeys[DIK_SPACE]) {
+				float kickStrength = 3.0f; // 蹴りの強さ
+				pendulum.angularVelocity += kickStrength;
+			}
 
-			// 紐の先の位置に変換（yが下方向）
-			ball.position.x = center.x + sinf(angle) * length;
-			ball.position.y = center.y - cosf(angle) * length;
-			ball.position.z = center.z;
+			if (pendulum.angularVelocity >= pendulum.angularVelocityMax) {
+				pendulum.angularVelocity = pendulum.angularVelocityMax;
+			}
+
+			// --- 振り子の角加速度（減衰込み）---
+			pendulum.angularAcceleration =
+				(-9.8f / pendulum.length) * sinf(pendulum.angle)
+				- damping * pendulum.angularVelocity;
+
+			// --- 角速度と角度を更新 ---
+			pendulum.angularVelocity += pendulum.angularAcceleration * deltaTime;
+			pendulum.angle += pendulum.angularVelocity * deltaTime;
+
+			// --- 振り子先端の位置を更新 ---
+			ball.position.x = pendulum.anchor.x + sinf(pendulum.angle) * pendulum.length;
+			ball.position.y = pendulum.anchor.y - cosf(pendulum.angle) * pendulum.length;
+			ball.position.z = pendulum.anchor.z;
+
+			// --- Rキーでロープ切断 ---
+			if (keys[DIK_R] && !preKeys[DIK_R]) {
+
+				// 接線速度を計算
+				float speedX = pendulum.angularVelocity * pendulum.length * cosf(pendulum.angle);
+				float speedY = pendulum.angularVelocity * pendulum.length * sinf(pendulum.angle);
+				ballVelocity = { speedX, speedY, 0.0f };
+
+				anchorAtCut = pendulum.anchor;         // 切断時のアンカーを記録
+				baseCameraTranslate = cameraTranslate; // 現在のカメラ位置を基準として記録
+
+				targetGoal = ball.position;
+				isCut = true;
+			}
+
+		} else {
+
+			targetGoal = ball.position;
+
+			// 慣性移動
+			ball.position = ball.position + ballVelocity * deltaTime;
+
+			// 慣性方向に減速
+			ballVelocity = ballVelocity * ball.decelerationRate;
+
+			// ある程度小さくなったら停止
+			if (Length(ballVelocity) < 0.05f) {
+				ballVelocity = { 0.0f, 0.0f, 0.0f };
+
+				// 新しいアンカー位置を設定（ボールの上方向にpendulum.length）
+				pendulum.anchor = {
+					ball.position.x,
+					ball.position.y + pendulum.length,
+					ball.position.z
+				};
+
+				// 初期角度・速度をリセット
+				pendulum.angle = 0.0f;
+				pendulum.angularVelocity = 0.0f;
+				pendulum.angularAcceleration = 0.0f;
+
+				targetGoal = pendulum.anchor;
+
+				isCut = false;  // 再び振り子フェーズに戻る
+			}
 		}
-
 
 		///
 		/// ↑更新処理ここまで
@@ -228,11 +324,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		DrawSphere(ball.position, ball.radius, viewProjectionMatrix, viewportMatrix, ball.color);
 
+		DrawSphere(pendulum.anchor, ball.radius, viewProjectionMatrix, viewportMatrix, RED);
+
 		ImGui::Begin("Control");
 		if (ImGui::Button("Start Ball")) {
 			isStarted = true;
 		}
 		ImGui::End();
+
+		Novice::ScreenPrintf(0, 0, "pendulum.velocity:%.2f", pendulum.angularVelocity);
+
+		Novice::ScreenPrintf(0, 20, "ballPosX:Y=%.2f,%.2f", ball.position.x, ball.position.y);
 
 		///
 		/// ↑描画処理ここまで
@@ -355,13 +457,22 @@ Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix)
 Vector3 Leap(const Vector3& v1, const Vector3& v2, float t)
 {
 	Vector3 result;
-
-	result.x = t * v1.x + (1.0f - t) * v2.x;
-	result.y = t * v1.y + (1.0f - t) * v2.y;
-	result.z = t * v1.z + (1.0f - t) * v2.z;
-
+	result.x = v1.x + (v2.x - v1.x) * t;
+	result.y = v1.y + (v2.y - v1.y) * t;
+	result.z = v1.z + (v2.z - v1.z) * t;
 	return result;
 }
+
+//Vector3 Leap(const Vector3& v1, const Vector3& v2, float t)
+//{
+//	Vector3 result;
+//
+//	result.x = t * v1.x + (1.0f - t) * v2.x;
+//	result.y = t * v1.y + (1.0f - t) * v2.y;
+//	result.z = t * v1.z + (1.0f - t) * v2.z;
+//
+//	return result;
+//}
 
 void DrawBezier(const Vector3& controlPoint0, const Vector3& controlPoint1, const Vector3& controlPoint2, const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix, int division, uint32_t color)
 {
