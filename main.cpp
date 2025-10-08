@@ -19,33 +19,8 @@
 
 const char kWindowTitle[] = "LC1C_14_タカムラシュン_タイトル";
 
-typedef struct Spring {
-	Vector3 anchor;
-	float naturelLendth;
-	float stiffness;
-	float dempingCoefficient;
-}Spring;
-
-typedef struct Ball {
-	Vector3 position;
-	Vector3 velocity;
-	Vector3 acceleration;
-	float decelerationRate;
-	float mass;
-	float radius;
-	unsigned int color;
-}Ball;
-
-// Pendulum構造体
-struct Pendulum {
-	Vector3 anchor;            // 固定された端の位置
-	float length;              // 紐の長さ
-	float angle;               // 現在の角度（ラジアン）
-	float angularVelocity;     // 角速度
-	float angularVelocityMax;
-	float angularAcceleration; // 角加速度
-	unsigned int color;
-};
+static const int kRowHeight = 20;
+static const int kColumnWidth = 60;
 
 // 行列をベクトルに変換する関数
 Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix);
@@ -147,6 +122,11 @@ Matrix4x4 MakeRotateYMatrix(Vector3 rotate);
 // Z回転行列作成関数
 Matrix4x4 MakeRotateZMatrix(Vector3 rotate);
 
+Matrix4x4 MakeRotateAxisAngle(Vector3 axis, float angle);
+
+// 行列の表示関数
+void MatrixScreenPrintf(int x, int y, const Matrix4x4& matrix);
+
 // オーバーロード
 Vector3 operator+(const Vector3& v1, const Vector3& v2) { return Add(v1, v2); }
 Vector3 operator-(const Vector3& v1, const Vector3& v2) { return Subtract(v1, v2); }
@@ -167,49 +147,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	char keys[256] = { 0 };
 	char preKeys[256] = { 0 };
 
-	Ball ball{};
-	ball.position = { 0.0f,0.2f,0.0f };
-	ball.decelerationRate = 0.98f;
-	ball.mass = 2.0f;
-	ball.radius = 0.05f;
-	ball.color = 0xFF0000FF;
-	float kickStrength = 1.5f; // 蹴りの強さ
+	Vector3 axis = { 1.0f,1.0f,1.0f };
 
-	float deltaTime = 1.0f / 60.0f;
+	float angle = 0.44f;
 
-	// ひもが切れたかどうか
-	bool isCut = false;
-	// 切れた後のボールの速度
-	Vector3 ballVelocity{ 0.0f, 0.0f, 0.0f };
-
-	// 初期化
-	Pendulum pendulum;
-	pendulum.anchor = { 0.0f, 1.0f, 0.0f };
-	pendulum.length = 0.8f;
-	pendulum.angle = 0.0f;              // 初期角度
-	pendulum.angularVelocity = 0.0f;
-	pendulum.angularAcceleration = 0.0f;
-	pendulum.angularVelocityMax = 20.0f;
-	pendulum.color = 0xFFFFFFFF;
-
-	// 減衰係数（小さいほど長く揺れる、大きいほどすぐ止まる）
-	float damping = 0.25f;
-
-	Vector3 rotate{ 0.0f,0.0f,0.0f };
-	Vector3 translate{ 0.0f,0.0f,0.0f };
-
-	Vector3 cameraRotate = { 0.0f, 0.0f, 0.0f };
-	Vector3 cameraTranslate = { 0.0f,0.0f, -10.0f };
-
-	// --- カメラ初期化のところに追加 ---
-	Vector3 baseCameraTranslate = cameraTranslate;  // 現在のカメラ基準位置
-	Vector3 anchorAtCut;                            // 切断時のアンカー位置（基準）
-
-	Vector3 cameraTarget = pendulum.anchor;// カメラの注視点
-	Vector3 targetGoal = pendulum.anchor; // カメラが次に向かう座標
-	float cameraLerpSpeed = 0.05f;         // 0.05〜0.2くらいで調整
-
-	Vector3 cameraOffset = { 0.0f,0.0f,-10.0f };
+	Matrix4x4 rotateMatrix = MakeRotateAxisAngle(axis, angle);
 
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
@@ -224,93 +166,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓更新処理ここから
 		///
 
-		// カメラの処理
-
-		cameraTranslate = cameraTarget + cameraOffset;
-
-		cameraTarget = Leap(cameraTarget, targetGoal, cameraLerpSpeed);
-
-		UpdateCameraByMouse(cameraTranslate, cameraRotate);
-
-		Matrix4x4 cameraMatrix = MakeAffineMatrix({ 1.0f, 1.0f, 1.0f }, cameraRotate, cameraTranslate);
-		Matrix4x4 viewMatrix = Inverse(cameraMatrix);
-		Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix(0.45f, 1280.0f / 720.0f, 0.1f, 100.0f);
-		Matrix4x4 viewProjectionMatrix = Multiply(viewMatrix, projectionMatrix);
-		Matrix4x4 viewportMatrix = MakeViewportMatrix(0, 0, 1280, 720, 0.0f, 1.0f);
-
-		if (!isCut) {
-			// カメラの注視点をアンカーに設定
-			targetGoal = pendulum.anchor;
-
-			// --- 振り子フェーズ ---
-			if (keys[DIK_SPACE] && !preKeys[DIK_SPACE]) {
-				pendulum.angularVelocity += kickStrength;
-			}
-
-			if (pendulum.angularVelocity >= pendulum.angularVelocityMax) {
-				pendulum.angularVelocity = pendulum.angularVelocityMax;
-			}
-
-			// --- 振り子の角加速度（減衰込み）---
-			pendulum.angularAcceleration =
-				(-9.8f / pendulum.length) * sinf(pendulum.angle)
-				- damping * pendulum.angularVelocity;
-
-			// --- 角速度と角度を更新 ---
-			pendulum.angularVelocity += pendulum.angularAcceleration * deltaTime;
-			pendulum.angle += pendulum.angularVelocity * deltaTime;
-
-			// --- 振り子先端の位置を更新 ---
-			ball.position.x = pendulum.anchor.x + sinf(pendulum.angle) * pendulum.length;
-			ball.position.y = pendulum.anchor.y - cosf(pendulum.angle) * pendulum.length;
-			ball.position.z = pendulum.anchor.z;
-
-			// --- Rキーでロープ切断 ---
-			if (keys[DIK_R] && !preKeys[DIK_R]) {
-
-				// 接線速度を計算
-				float speedX = pendulum.angularVelocity * pendulum.length * cosf(pendulum.angle);
-				float speedY = pendulum.angularVelocity * pendulum.length * sinf(pendulum.angle);
-				ballVelocity = { speedX, speedY, 0.0f };
-
-				anchorAtCut = pendulum.anchor;         // 切断時のアンカーを記録
-				baseCameraTranslate = cameraTranslate; // 現在のカメラ位置を基準として記録
-
-				targetGoal = ball.position;
-				isCut = true;
-			}
-
-		} else {
-
-			targetGoal = ball.position;
-
-			// 慣性移動
-			ball.position = ball.position + ballVelocity * deltaTime;
-
-			// 慣性方向に減速
-			ballVelocity = ballVelocity * ball.decelerationRate;
-
-			// ある程度小さくなったら停止
-			if (Length(ballVelocity) < 0.05f) {
-				ballVelocity = { 0.0f, 0.0f, 0.0f };
-
-				// 新しいアンカー位置を設定（ボールの上方向にpendulum.length）
-				pendulum.anchor = {
-					ball.position.x,
-					ball.position.y + pendulum.length,
-					ball.position.z
-				};
-
-				// 初期角度・速度をリセット
-				pendulum.angle = 0.0f;
-				pendulum.angularVelocity = 0.0f;
-				pendulum.angularAcceleration = 0.0f;
-
-				targetGoal = pendulum.anchor;
-
-				isCut = false;  // 再び振り子フェーズに戻る
-			}
-		}
+		
 
 		///
 		/// ↑更新処理ここまで
@@ -320,17 +176,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓描画処理ここから
 		///
 
-		// グリッドの描画
-		DrawGrid(viewProjectionMatrix, viewportMatrix);
-
-		DrawSphere(ball.position, ball.radius, viewProjectionMatrix, viewportMatrix, ball.color);
-
-		DrawSphere(pendulum.anchor, ball.radius, viewProjectionMatrix, viewportMatrix, pendulum.color);
-
-		Novice::ScreenPrintf(0, 0, "pendulum.velocity:%.2f", pendulum.angularVelocity);
-
-		Novice::ScreenPrintf(0, 20, "ballPosX:Y=%.2f,%.2f", ball.position.x, ball.position.y);
-
+		MatrixScreenPrintf(0, 0, rotateMatrix);
+		
 		///
 		/// ↑描画処理ここまで
 		///
@@ -428,6 +275,50 @@ Matrix4x4 MakeRotateZMatrix(Vector3 rotate)
 	rotateMatrixZ.m[3][3] = 1.0f;
 
 	return rotateMatrixZ;
+}
+
+Matrix4x4 MakeRotateAxisAngle(Vector3 axis, float angle)
+{
+	Matrix4x4 rotateMatrix{};
+
+	// 正規化された軸ベクトル
+	Vector3 n = Normalize(axis);
+
+	float c = cosf(angle);
+	float s = sinf(angle);
+	float oneMinusC = 1.0f - c;
+
+	rotateMatrix.m[0][0] = n.x * n.x * oneMinusC + c;
+	rotateMatrix.m[0][1] = n.x * n.y * oneMinusC + n.z * s;
+	rotateMatrix.m[0][2] = n.x * n.z * oneMinusC - n.y * s;
+	rotateMatrix.m[0][3] = 0.0f;
+
+	rotateMatrix.m[1][0] = n.y * n.x * oneMinusC - n.z * s;
+	rotateMatrix.m[1][1] = n.y * n.y * oneMinusC + c;
+	rotateMatrix.m[1][2] = n.y * n.z * oneMinusC + n.x * s;
+	rotateMatrix.m[1][3] = 0.0f;
+
+	rotateMatrix.m[2][0] = n.z * n.x * oneMinusC + n.y * s;
+	rotateMatrix.m[2][1] = n.z * n.y * oneMinusC - n.x * s;
+	rotateMatrix.m[2][2] = n.z * n.z * oneMinusC + c;
+	rotateMatrix.m[2][3] = 0.0f;
+
+	rotateMatrix.m[3][0] = 0.0f;
+	rotateMatrix.m[3][1] = 0.0f;
+	rotateMatrix.m[3][2] = 0.0f;
+	rotateMatrix.m[3][3] = 1.0f;
+
+	return rotateMatrix;
+}
+
+void MatrixScreenPrintf(int x, int y, const Matrix4x4& matrix)
+{
+	for (int row = 0; row < 4; ++row) {
+		for (int column = 0; column < 4; ++column) {
+			Novice::ScreenPrintf(
+				x + column * kColumnWidth, y + row * kRowHeight, "%6.3f", matrix.m[row][column]);
+		}
+	}
 }
 
 Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix)
