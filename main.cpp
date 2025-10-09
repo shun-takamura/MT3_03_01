@@ -69,6 +69,16 @@ float Cotangent(float theta);
 
 void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix);
 
+float LengthSq(const Vector3& v) {
+	return v.x * v.x + v.y * v.y + v.z * v.z;
+}
+
+// 線分(壁のエッジ)とカプセルの交差判定
+bool CapsuleIntersectsSegment3D(
+	const Vector3& capsuleStart, const Vector3& capsuleEnd, float radius,
+	const Vector3& segStart, const Vector3& segEnd);
+
+
 /// <summary>
 /// アフィン行列作成関数
 /// </summary>
@@ -125,6 +135,9 @@ void UpdateCameraByMouse(Vector3& cameraTranslate, Vector3& cameraRotate);
 void DrawSphere(const Vector3& center, float radius, const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix, uint32_t color);
 
 float Length(const Vector3& v);
+
+// 内積
+float Dot(const Vector3& v1, const Vector3& v2);
 
 Vector3 Normalize(const Vector3& v);
 
@@ -299,44 +312,47 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 				isCut = true;
 			}
 
-			//if (keys[DIK_R] && !preKeys[DIK_R]) {
-
-			//	// 接線速度を計算
-			//	float speedX = pendulum.angularVelocity * pendulum.length * cosf(pendulum.angle);
-			//	float speedY = pendulum.angularVelocity * pendulum.length * sinf(pendulum.angle);
-			//	ballVelocity = { speedX, speedY, 0.0f };
-
-			//	anchorAtCut = pendulum.anchor;         // 切断時のアンカーを記録
-			//	baseCameraTranslate = cameraTranslate; // 現在のカメラ位置を基準として記録
-
-			//	targetGoal = ball.position;
-			//	isCut = true;
-			//}
-
 		} else {
 
 			targetGoal = ball.position;
 
+			// 慣性移動前の位置を保存
+			Vector3 prevPos = ball.position;
+
 			// 慣性移動
 			ball.position = ball.position + ballVelocity * deltaTime;
 
-			// 左右の壁（x方向）
-			if (ball.position.x - ball.radius < wallXMin) {
-				ball.position.x = wallXMin + ball.radius;
-				ballVelocity.x *= -1.0f;  // x反転
-			} else if (ball.position.x + ball.radius > wallXMax) {
-				ball.position.x = wallXMax - ball.radius;
-				ballVelocity.x *= -1.0f;
+			// ---- カプセル形状での壁衝突判定 ----
+			Vector3 walls[4][2] = {
+				{ {wallXMin, wallYMin, 0.0f}, {wallXMin, wallYMax, 0.0f} }, // 左壁
+				{ {wallXMax, wallYMin, 0.0f}, {wallXMax, wallYMax, 0.0f} }, // 右壁
+				{ {wallXMin, wallYMin, 0.0f}, {wallXMax, wallYMin, 0.0f} }, // 下壁
+				{ {wallXMin, wallYMax, 0.0f}, {wallXMax, wallYMax, 0.0f} }  // 上壁
+			};
+
+			for (int i = 0; i < 4; i++) {
+				if (CapsuleIntersectsSegment3D(prevPos, ball.position, ball.radius, walls[i][0], walls[i][1])) {
+
+					// 反射軸を求める
+					Vector3 normal{ 0,0,0 };
+					switch (i) {
+					case 0: normal = { 1, 0, 0 }; break;  // 左壁
+					case 1: normal = { -1, 0, 0 }; break; // 右壁
+					case 2: normal = { 0, 1, 0 }; break;  // 下壁
+					case 3: normal = { 0, -1, 0 }; break; // 上壁
+					}
+
+					// ボールを前フレーム位置に戻して反射
+					ball.position = prevPos;
+
+					// 速度を反射方向へ変換
+					float dotN = Dot(ballVelocity, normal);
+					ballVelocity = ballVelocity - 2.0f * dotN * normal;
+
+					break; // 1枚の壁に当たったら他はスキップ
+				}
 			}
 
-			// 上下の壁（y方向）
-			if (ball.position.y - ball.radius < wallYMin) {
-				ball.position.y = wallYMin + ball.radius;
-				ballVelocity.y *= -1.0f;  // y反転
-			} else if (ball.position.y + ball.radius > wallYMax) {
-				ball.position.y = wallYMax - ball.radius;
-				ballVelocity.y *= -1.0f;
-			}
 
 			// 慣性方向に減速
 			ballVelocity = ballVelocity * ball.decelerationRate;
@@ -637,6 +653,56 @@ void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMa
 		end = Transform(Transform(end, viewProjectionMatrix), viewportMatrix);
 		Novice::DrawLine(static_cast<int>(start.x), static_cast<int>(start.y), static_cast<int>(end.x), static_cast<int>(end.y), color);
 	}
+}
+bool CapsuleIntersectsSegment3D(const Vector3& capsuleStart, const Vector3& capsuleEnd, float radius, const Vector3& segStart, const Vector3& segEnd){
+	// カプセル軸方向
+	Vector3 u = capsuleEnd - capsuleStart;
+	Vector3 v = segEnd - segStart;
+	Vector3 w = capsuleStart - segStart;
+
+	float a = Dot(u, u);  // カプセル軸の長さ²
+	float b = Dot(u, v);
+	float c = Dot(v, v);
+	float d = Dot(u, w);
+	float e = Dot(v, w);
+
+	float denom = a * c - b * b;
+	float sc, sN, sD = denom;
+	float tc, tN, tD = denom;
+
+	// まず線分間の最近接点パラメータ s, t を求める（線分-線分距離の標準式）
+	const float EPS = 1e-6f;
+	if (denom < EPS) {
+		sN = 0.0f;  // 平行時
+		sD = 1.0f;
+		tN = e;
+		tD = c;
+	} else {
+		sN = (b * e - c * d);
+		tN = (a * e - b * d);
+		if (sN < 0.0f) {
+			sN = 0.0f;
+			tN = e;
+			tD = c;
+		} else if (sN > sD) {
+			sN = sD;
+			tN = e + b;
+			tD = c;
+		}
+	}
+
+	tc = (fabsf(tN) < EPS ? 0.0f : tN / tD);
+	tc = std::clamp(tc, 0.0f, 1.0f);
+	sc = (fabsf(sN) < EPS ? 0.0f : sN / sD);
+	sc = std::clamp(sc, 0.0f, 1.0f);
+
+	// 線分間の最近接点を求める
+	Vector3 p1 = capsuleStart + u * sc;
+	Vector3 p2 = segStart + v * tc;
+
+	// 距離が半径以下なら交差
+	float distSq = LengthSq(p1 - p2);
+	return distSq <= (radius * radius);
 }
 Matrix4x4 MakeAffineMatrix(Vector3 scale, Vector3 rotate, Vector3 translate)
 {
@@ -1113,6 +1179,15 @@ float Length(const Vector3& v)
 	length = sqrtf(powf(v.x, 2.0f) + powf(v.y, 2.0f) + powf(v.z, 2.0f));
 
 	return length;
+}
+
+float Dot(const Vector3& v1, const Vector3& v2)
+{
+	float resoult;
+
+	resoult = v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
+
+	return resoult;
 }
 
 Vector3 Normalize(const Vector3& v)
