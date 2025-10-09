@@ -150,12 +150,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	char keys[256] = { 0 };
 	char preKeys[256] = { 0 };
 
-	Vector3 from0 = { 1.0f,0.7f,0.5f };
-	Vector3 to0 = { -1.0f,-0.7f,-0.5f };
-	Vector3 from1 = { -0.6f,0.9f,0.2f };
-	Vector3 to1 = { 0.4f,0.7f,-0.5f };
+	Vector3 from0 = Normalize(Vector3{ 1.0f,0.7f,0.5f });
+	Vector3 to0 = Normalize(Vector3{ -1.0f,-0.7f,-0.5f });
+	Vector3 from1 = Normalize(Vector3{ -0.6f,0.9f,0.2f });
+	Vector3 to1 = Normalize(Vector3{ 0.4f,0.7f,-0.5f });
 
-	Matrix4x4 rotateMatrix0 = DirectionToDirection({ 1.0f,0.0f,0.0f }, { -1.0f,0.0f,0.0f });
+	Matrix4x4 rotateMatrix0 = DirectionToDirection(Normalize(Vector3{ 1.0f,0.0f,0.0f }), Normalize(Vector3{ -1.0f,0.0f,0.0f }));
 	Matrix4x4 rotateMatrix1 = DirectionToDirection(from0, to0);
 	Matrix4x4 rotateMatrix2 = DirectionToDirection(from1, to1);
 
@@ -290,25 +290,25 @@ Matrix4x4 MakeRotateAxisAngle(Vector3 axis, float angle)
 	Matrix4x4 rotateMatrix{};
 
 	// 正規化された軸ベクトル
-	Vector3 normalizedAxis = Normalize(axis);
+	//Vector3 normalizedAxis = Normalize(axis);
 
 	float c = cosf(angle);
 	float s = sinf(angle);
 	float oneMinusC = 1.0f - c;
 
-	rotateMatrix.m[0][0] = normalizedAxis.x * normalizedAxis.x * oneMinusC + c;
-	rotateMatrix.m[0][1] = normalizedAxis.x * normalizedAxis.y * oneMinusC + normalizedAxis.z * s;
-	rotateMatrix.m[0][2] = normalizedAxis.x * normalizedAxis.z * oneMinusC - normalizedAxis.y * s;
+	rotateMatrix.m[0][0] = axis.x * axis.x * oneMinusC + c;
+	rotateMatrix.m[0][1] = axis.x * axis.y * oneMinusC + axis.z * s;
+	rotateMatrix.m[0][2] = axis.x * axis.z * oneMinusC - axis.y * s;
 	rotateMatrix.m[0][3] = 0.0f;
 
-	rotateMatrix.m[1][0] = normalizedAxis.y * normalizedAxis.x * oneMinusC - normalizedAxis.z * s;
-	rotateMatrix.m[1][1] = normalizedAxis.y * normalizedAxis.y * oneMinusC + c;
-	rotateMatrix.m[1][2] = normalizedAxis.y * normalizedAxis.z * oneMinusC + normalizedAxis.x * s;
+	rotateMatrix.m[1][0] = axis.y * axis.x * oneMinusC - axis.z * s;
+	rotateMatrix.m[1][1] = axis.y * axis.y * oneMinusC + c;
+	rotateMatrix.m[1][2] = axis.y * axis.z * oneMinusC + axis.x * s;
 	rotateMatrix.m[1][3] = 0.0f;
 
-	rotateMatrix.m[2][0] = normalizedAxis.z * normalizedAxis.x * oneMinusC + normalizedAxis.y * s;
-	rotateMatrix.m[2][1] = normalizedAxis.z * normalizedAxis.y * oneMinusC - normalizedAxis.x * s;
-	rotateMatrix.m[2][2] = normalizedAxis.z * normalizedAxis.z * oneMinusC + c;
+	rotateMatrix.m[2][0] = axis.z * axis.x * oneMinusC + axis.y * s;
+	rotateMatrix.m[2][1] = axis.z * axis.y * oneMinusC - axis.x * s;
+	rotateMatrix.m[2][2] = axis.z * axis.z * oneMinusC + c;
 	rotateMatrix.m[2][3] = 0.0f;
 
 	rotateMatrix.m[3][0] = 0.0f;
@@ -321,37 +321,14 @@ Matrix4x4 MakeRotateAxisAngle(Vector3 axis, float angle)
 
 Matrix4x4 DirectionToDirection(const Vector3& from, const Vector3& to)
 {
-	// 単位ベクトル化
-	Vector3 u = Normalize(from);
-	Vector3 v = Normalize(to);
+	Matrix4x4 result{};
 
-	// 内積と外積を計算
-	float dot = u.x * v.x + u.y * v.y + u.z * v.z;
-	Vector3 cross = {
-		u.y * v.z - u.z * v.y,
-		u.z * v.x - u.x * v.z,
-		u.x * v.y - u.y * v.x
-	};
+	Vector3 u = from;
+	Vector3 v = to;
 
-	// 同方向（回転なし）
-	if (fabs(dot - 1.0f) < 1e-6f) {
-		Matrix4x4 identity{};
-		identity.m[0][0] = identity.m[1][1] = identity.m[2][2] = identity.m[3][3] = 1.0f;
-		return identity;
-	}
 
-	// 真逆（180度回転）
-	if (fabs(dot + 1.0f) < 1e-6f) {
-		Vector3 axis = { 0.0f, u.z, -u.y };
-		if (Length(axis) < 1e-6f) axis = { -u.z, 0.0f, u.x }; // fallback
-		return MakeRotateAxisAngle(axis, static_cast<float>(M_PI));
-	}
 
-	// 回転角を計算
-	float angle = acosf(dot);
-
-	// cross は非正規化のまま渡す（中で Normalize される）
-	return MakeRotateAxisAngle(cross, angle);
+	return result;
 }
 
 void MatrixScreenPrintf(int x, int y, const Matrix4x4& matrix)
