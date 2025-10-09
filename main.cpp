@@ -16,7 +16,6 @@
 #include "DirectXCommon.h"
 #include "WinApp.h"
 
-
 const char kWindowTitle[] = "LC1C_14_タカムラシュン_タイトル";
 
 typedef struct Spring {
@@ -77,7 +76,6 @@ float LengthSq(const Vector3& v) {
 bool CapsuleIntersectsSegment3D(
 	const Vector3& capsuleStart, const Vector3& capsuleEnd, float radius,
 	const Vector3& segStart, const Vector3& segEnd);
-
 
 /// <summary>
 /// アフィン行列作成関数
