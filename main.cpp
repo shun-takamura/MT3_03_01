@@ -113,6 +113,12 @@ Matrix4x4 Add(Matrix4x4 matrix1, Matrix4x4 matrix2);
 
 Matrix4x4 Subtract(Matrix4x4 matrix1, Matrix4x4 matrix2);
 
+// 内積
+float Dot(const Vector3& v1, const Vector3& v2);
+
+// クロス積
+Vector3 Cross(const Vector3& v1, const Vector3& v2);
+
 // X回転行列作成関数
 Matrix4x4 MakeRotateXMatrix(Vector3 rotate);
 
@@ -326,10 +332,96 @@ Matrix4x4 DirectionToDirection(const Vector3& from, const Vector3& to)
 	Vector3 u = from;
 	Vector3 v = to;
 
+	float cosTheta = Dot(u, v);
 
+	// 同方向：回転不要
+	if (cosTheta > 0.99999f) {
+		return {
+			1,0,0,0,
+			0,1,0,0,
+			0,0,1,0,
+			0,0,0,1
+		};
+	}
+
+	// 真逆方向：任意軸で180度回転
+	if (cosTheta < -0.99999f) {
+		Vector3 axis;
+		if (fabs(u.x) < fabs(u.y) && fabs(u.x) < fabs(u.z)) {
+			axis = Vector3{ 1,0,0 }; // x軸とあまり平行でない
+		} else if (fabs(u.y) < fabs(u.z)) {
+			axis = Vector3{ 0,1,0 };
+		} else {
+			axis = Vector3{ 0,0,1 };
+		}
+		axis = Normalize(Cross(u, axis)); // 直交する軸を作る
+		return MakeRotateAxisAngle(axis, static_cast<float>(M_PI)); // π(180°)回転
+	}
+
+	// 通常ケース
+	Vector3 axis = Normalize(Cross(u, v));
+	float sinTheta = Length(Cross(u, v));
+
+	float oneMinusC = 1.0f - cosTheta;
+
+	result.m[0][0] = axis.x * axis.x * oneMinusC + cosTheta;
+	result.m[0][1] = axis.x * axis.y * oneMinusC + axis.z * sinTheta;
+	result.m[0][2] = axis.x * axis.z * oneMinusC - axis.y * sinTheta;
+	result.m[0][3] = 0.0f;
+
+	result.m[1][0] = axis.y * axis.x * oneMinusC - axis.z * sinTheta;
+	result.m[1][1] = axis.y * axis.y * oneMinusC + cosTheta;
+	result.m[1][2] = axis.y * axis.z * oneMinusC + axis.x * sinTheta;
+	result.m[1][3] = 0.0f;
+
+	result.m[2][0] = axis.z * axis.x * oneMinusC + axis.y * sinTheta;
+	result.m[2][1] = axis.z * axis.y * oneMinusC - axis.x * sinTheta;
+	result.m[2][2] = axis.z * axis.z * oneMinusC + cosTheta;
+	result.m[2][3] = 0.0f;
+
+	result.m[3][0] = 0.0f;
+	result.m[3][1] = 0.0f;
+	result.m[3][2] = 0.0f;
+	result.m[3][3] = 1.0f;
 
 	return result;
 }
+
+
+//Matrix4x4 DirectionToDirection(const Vector3& from, const Vector3& to)
+//{
+//	Matrix4x4 result{};
+//
+//	Vector3 u = from;
+//	Vector3 v = to;
+//
+//	Vector3 axis = Normalize(Cross(u, v));
+//	float cosTheta = Dot(u, v);
+//	float sinTheta = Length(Cross(u, v));
+//	float oneMinusC = 1.0f - cosTheta;
+//
+//	result.m[0][0] = axis.x * axis.x * oneMinusC + cosTheta;
+//	result.m[0][1] = axis.x * axis.y * oneMinusC + axis.z * sinTheta;
+//	result.m[0][2] = axis.x * axis.z * oneMinusC - axis.y * sinTheta;
+//	result.m[0][3] = 0.0f;
+//
+//	result.m[1][0] = axis.y * axis.x * oneMinusC - axis.z * sinTheta;
+//	result.m[1][1] = axis.y * axis.y * oneMinusC + cosTheta;
+//	result.m[1][2] = axis.y * axis.z * oneMinusC + axis.x * sinTheta;
+//	result.m[1][3] = 0.0f;
+//
+//	result.m[2][0] = axis.z * axis.x * oneMinusC + axis.y * sinTheta;
+//	result.m[2][1] = axis.z * axis.y * oneMinusC - axis.x * sinTheta;
+//	result.m[2][2] = axis.z * axis.z * oneMinusC + cosTheta;
+//	result.m[2][3] = 0.0f;
+//
+//	result.m[3][0] = 0.0f;
+//	result.m[3][1] = 0.0f;
+//	result.m[3][2] = 0.0f;
+//	result.m[3][3] = 1.0f;
+//
+//	return result;
+//}
 
 void MatrixScreenPrintf(int x, int y, const Matrix4x4& matrix)
 {
@@ -1010,6 +1102,26 @@ Matrix4x4 Subtract(Matrix4x4 matrix1, Matrix4x4 matrix2)
 	result.m[3][1] = matrix1.m[3][1] - matrix2.m[3][1];
 	result.m[3][2] = matrix1.m[3][2] - matrix2.m[3][2];
 	result.m[3][3] = matrix1.m[3][3] - matrix2.m[3][3];
+
+	return result;
+}
+
+float Dot(const Vector3& v1, const Vector3& v2)
+{
+	float resoult;
+
+	resoult = v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
+
+	return resoult;
+}
+
+Vector3 Cross(const Vector3& v1, const Vector3& v2)
+{
+	Vector3 result;
+
+	result.x = v1.y * v2.z - v1.z * v2.y;
+	result.y = v1.z * v2.x - v1.x * v2.z;
+	result.z = v1.x * v2.y - v1.y * v2.x;
 
 	return result;
 }
