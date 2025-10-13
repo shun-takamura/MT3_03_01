@@ -20,88 +20,35 @@
 const char kWindowTitle[] = "LC1C_14_タカムラシュン_タイトル";
 
 static const int kRowHeight = 20;
-static const int kColumnWidth = 60;
+static const int kColumnWidth = 150;
 
-// 行列をベクトルに変換する関数
-Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix);
+typedef struct Quaternion {
+	float x;
+	float y;
+	float z;
+	float w;
+}Quaternion;
 
-Vector3 Leap(const Vector3& v1, const Vector3& v2, float t);
+// Quaternionの積
+Quaternion Multiply(const Quaternion& lhs, const Quaternion& rhs);
 
-void DrawBezier(const Vector3& controlPoint0, const Vector3& controlPoint1, const Vector3& controlPoint2,
-	const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix, int division, uint32_t color);
+// 単位Quaternionを返す
+Quaternion IdentityQuaternion();
 
-typedef struct Segment {
-	Vector3 origin;// 始点
-	Vector3 diff;// 終点
-}Segment;
+// 共役Quaternionを返す(虚部の符号を反転)
+Quaternion Conjugate(const Quaternion& quaternion);
 
-/// <summary>
-/// cotangent(余接)を求める関数
-/// </summary>
-/// <param name="theta">θ(シータ)</param>
-/// <returns>cotangent</returns>
-float Cotangent(float theta);
+// Quaternionのノルムを返す
+float Norm(const Quaternion& quaternion);
 
-void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix);
+// 正規化したQuaternionを返す
+Quaternion Normalize(const Quaternion& quaternion);
 
-/// <summary>
-/// アフィン行列作成関数
-/// </summary>
-/// <param name="scale">縮尺</param>
-/// <param name="rotate">thetaを求めるための数値</param>
-/// <param name="translate">三次元座標でのx,y,zの移動量</param>
-/// <returns>アフィン行列</returns>
-Matrix4x4 MakeAffineMatrix(Vector3 scale, Vector3 rotate, Vector3 translate);
+// 逆Quaternionを返す(これをかけると単位クオータニオンができる)
+Quaternion Inverse(const Quaternion& quaternion);
 
-/// <summary>
-/// 4x4逆行列を求める関数
-/// </summary>
-/// <param name="matrix4x4">逆行列を求めたい行列</param>
-/// <returns>4x4逆行列</returns>
-Matrix4x4 Inverse(Matrix4x4 matrix4x4);
-
-/// <summary>
-/// 4x4行列の積を求める関数
-/// </summary>
-/// <param name="matrix1">1つ目の行列</param>
-/// <param name="matrix2">1つ目の行列</param>
-/// <returns>4x4行列の積</returns>
-Matrix4x4 Multiply(Matrix4x4 matrix1, Matrix4x4 matrix2);
-
-/// <summary>
-/// 投視投影行列作成関数
-/// </summary>
-/// <param name="fovY">縦の画角</param>
-/// <param name="aspectRatio">アスペクト比</param>
-/// <param name="nearClip">近平面への距離</param>
-/// <param name="farClip">遠平面への距離</param>
-/// <returns>投視投影行列</returns>
-Matrix4x4 MakePerspectiveFovMatrix(float fovY, float aspectRatio, float nearClip, float farClip);
-
-/// <summary>
-/// ビューポート行列作成関数
-/// </summary>
-/// <param name="left">左側の座標</param>
-/// <param name="top">上側の座標</param>
-/// <param name="width">切り取るスクリーンの幅</param>
-/// <param name="height">切り取るスクリーンの高さ</param>
-/// <param name="minDepth">最小深度値</param>
-/// <param name="maxDepth">最大深度値</param>
-/// <returns></returns>
-Matrix4x4 MakeViewportMatrix(float left, float top, float width, float height, float minDepth, float maxDepth);
-
-/// <summary>
-/// マウスでカメラ操作
-/// </summary>
-/// <param name="cameraTranslate"></param>
-/// <param name="cameraRotate"></param>
-void UpdateCameraByMouse(Vector3& cameraTranslate, Vector3& cameraRotate);
-
-void DrawSphere(const Vector3& center, float radius, const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix, uint32_t color);
-
-float Length(const Vector3& v);
-
-Vector3 Normalize(const Vector3& v);
+// Quaternionの内容を画面に表示する関数
+void QuaternionScreenPrintf(int x, int y, const Quaternion& q, const char* label);
 
 Vector3 Add(const Vector3& v1, const Vector3& v2);
 
@@ -119,23 +66,6 @@ float Dot(const Vector3& v1, const Vector3& v2);
 // クロス積
 Vector3 Cross(const Vector3& v1, const Vector3& v2);
 
-// X回転行列作成関数
-Matrix4x4 MakeRotateXMatrix(Vector3 rotate);
-
-// Y回転行列作成関数
-Matrix4x4 MakeRotateYMatrix(Vector3 rotate);
-
-// Z回転行列作成関数
-Matrix4x4 MakeRotateZMatrix(Vector3 rotate);
-
-// 任意軸回転行列作成関数
-Matrix4x4 MakeRotateAxisAngle(Vector3 axis, float angle);
-
-Matrix4x4 DirectionToDirection(const Vector3& from, const Vector3& to);
-
-// 行列の表示関数
-void MatrixScreenPrintf(int x, int y, const Matrix4x4& matrix);
-
 // オーバーロード
 Vector3 operator+(const Vector3& v1, const Vector3& v2) { return Add(v1, v2); }
 Vector3 operator-(const Vector3& v1, const Vector3& v2) { return Subtract(v1, v2); }
@@ -144,7 +74,6 @@ Vector3 operator*(const Vector3& v1, const float& i) { return i * v1; }
 Vector3 operator/(const Vector3& v1, const float& i) { return Multiply(1.0f / i, v1); }
 Matrix4x4 operator+(Matrix4x4 matrix1, Matrix4x4 matrix2) { return Add(matrix1, matrix2); }
 Matrix4x4 operator-(Matrix4x4 matrix1, Matrix4x4 matrix2) { return Subtract(matrix1, matrix2); }
-Matrix4x4 operator*(Matrix4x4 matrix1, Matrix4x4 matrix2) { return Multiply(matrix1, matrix2); }
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -156,14 +85,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	char keys[256] = { 0 };
 	char preKeys[256] = { 0 };
 
-	Vector3 from0 = Normalize(Vector3{ 1.0f,0.7f,0.5f });
-	Vector3 to0 = Normalize(Vector3{ -1.0f,-0.7f,-0.5f });
-	Vector3 from1 = Normalize(Vector3{ -0.6f,0.9f,0.2f });
-	Vector3 to1 = Normalize(Vector3{ 0.4f,0.7f,-0.5f });
-
-	Matrix4x4 rotateMatrix0 = DirectionToDirection(Normalize(Vector3{ 1.0f,0.0f,0.0f }), Normalize(Vector3{ -1.0f,0.0f,0.0f }));
-	Matrix4x4 rotateMatrix1 = DirectionToDirection(from0, to0);
-	Matrix4x4 rotateMatrix2 = DirectionToDirection(from1, to1);
+	Quaternion q1 = { 2.0f,3.0f,4.0f,1.0f };
+	Quaternion q2 = { 1.0f,3.0f,5.0f,2.0f };
+	Quaternion identity = IdentityQuaternion();
+	Quaternion conj = Conjugate(q1);
+	Quaternion inv = Inverse(q1);
+	Quaternion normal = Normalize(q1);
+	Quaternion mul1 = Multiply(q1, q2);
+	Quaternion mul2 = Multiply(q2, q1);
+	float norm = Norm(q1);
 
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
@@ -188,9 +118,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓描画処理ここから
 		///
 
-		MatrixScreenPrintf(0, 0, rotateMatrix0);
-		MatrixScreenPrintf(0, kRowHeight * 5, rotateMatrix1);
-		MatrixScreenPrintf(0, kRowHeight * 10, rotateMatrix2);
+		QuaternionScreenPrintf(0, 0, identity, "Identity");
+		QuaternionScreenPrintf(0, kRowHeight * 1, conj, "Conjugate");
+		QuaternionScreenPrintf(0, kRowHeight * 2, inv, "Inverse");
+		QuaternionScreenPrintf(0, kRowHeight * 3, normal, "Normalize");
+		QuaternionScreenPrintf(0, kRowHeight * 4, mul1, "Multiply(q1,q2)");
+		QuaternionScreenPrintf(0, kRowHeight * 5, mul2, "Multiply(q2,q1)");
+		Novice::ScreenPrintf(0, kRowHeight * 6, "%2.2f", norm);
 
 		///
 		/// ↑描画処理ここまで
@@ -210,813 +144,97 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	return 0;
 }
 
-Matrix4x4 MakeRotateXMatrix(Vector3 rotate)
+Quaternion Multiply(const Quaternion& lhs, const Quaternion& rhs)
 {
-	// Xの回転行列
-	Matrix4x4 rotateMatrixX;
-	rotateMatrixX.m[0][0] = 1.0f;
-	rotateMatrixX.m[0][1] = 0.0f;
-	rotateMatrixX.m[0][2] = 0.0f;
-	rotateMatrixX.m[0][3] = 0.0f;
+	Quaternion result;
 
-	rotateMatrixX.m[1][0] = 0.0f;
-	rotateMatrixX.m[1][1] = cosf(rotate.x);
-	rotateMatrixX.m[1][2] = sinf(rotate.x);
-	rotateMatrixX.m[1][3] = 0.0f;
+	// 虚部を取り出す
+	Vector3 imaginaryLhs;
+	Vector3 imaginaryRhs;
+	Vector3 imaginaryResult;
 
-	rotateMatrixX.m[2][0] = 0.0f;
-	rotateMatrixX.m[2][1] = -sinf(rotate.x);
-	rotateMatrixX.m[2][2] = cosf(rotate.x);
-	rotateMatrixX.m[2][3] = 0.0f;
+	imaginaryLhs = { lhs.x,lhs.y,lhs.z };
+	imaginaryRhs = { rhs.x,rhs.y,rhs.z };
 
-	rotateMatrixX.m[3][0] = 0.0f;
-	rotateMatrixX.m[3][1] = 0.0f;
-	rotateMatrixX.m[3][2] = 0.0f;
-	rotateMatrixX.m[3][3] = 1.0f;
+	// 実部の計算
+	result.w = lhs.w * rhs.w - Dot(imaginaryLhs, imaginaryRhs);
 
-	return rotateMatrixX;
-}
+	// 虚部の計算(クオータニオンq,rの虚部のクロス積に(qの虚部にrの実部をスカラー倍したもの)と(rの虚部にqの実部をスカラー倍したもの)を足せばいい)
+	imaginaryResult = { Cross(imaginaryLhs,imaginaryRhs) + (lhs.w * imaginaryRhs) + (rhs.w * imaginaryLhs) };
 
-Matrix4x4 MakeRotateYMatrix(Vector3 rotate)
-{
-	// Yの回転行列
-	Matrix4x4 rotateMatrixY;
-	rotateMatrixY.m[0][0] = cosf(rotate.y);
-	rotateMatrixY.m[0][1] = 0.0f;
-	rotateMatrixY.m[0][2] = -sinf(rotate.y);
-	rotateMatrixY.m[0][3] = 0.0f;
-
-	rotateMatrixY.m[1][0] = 0.0f;
-	rotateMatrixY.m[1][1] = 1.0f;
-	rotateMatrixY.m[1][2] = 0.0f;
-	rotateMatrixY.m[1][3] = 0.0f;
-
-	rotateMatrixY.m[2][0] = sinf(rotate.y);
-	rotateMatrixY.m[2][1] = 0.0f;
-	rotateMatrixY.m[2][2] = cosf(rotate.y);
-	rotateMatrixY.m[2][3] = 0.0f;
-
-	rotateMatrixY.m[3][0] = 0.0f;
-	rotateMatrixY.m[3][1] = 0.0f;
-	rotateMatrixY.m[3][2] = 0.0f;
-	rotateMatrixY.m[3][3] = 1.0f;
-
-	return rotateMatrixY;
-}
-
-Matrix4x4 MakeRotateZMatrix(Vector3 rotate)
-{
-	// Zの回転行列
-	Matrix4x4 rotateMatrixZ;
-	rotateMatrixZ.m[0][0] = cosf(rotate.z);
-	rotateMatrixZ.m[0][1] = sinf(rotate.z);
-	rotateMatrixZ.m[0][2] = 0.0f;
-	rotateMatrixZ.m[0][3] = 0.0f;
-
-	rotateMatrixZ.m[1][0] = -sinf(rotate.z);
-	rotateMatrixZ.m[1][1] = cosf(rotate.z);
-	rotateMatrixZ.m[1][2] = 0.0f;
-	rotateMatrixZ.m[1][3] = 0.0f;
-
-	rotateMatrixZ.m[2][0] = 0.0f;
-	rotateMatrixZ.m[2][1] = 0.0f;
-	rotateMatrixZ.m[2][2] = 1.0f;
-	rotateMatrixZ.m[2][3] = 0.0f;
-
-	rotateMatrixZ.m[3][0] = 0.0f;
-	rotateMatrixZ.m[3][1] = 0.0f;
-	rotateMatrixZ.m[3][2] = 0.0f;
-	rotateMatrixZ.m[3][3] = 1.0f;
-
-	return rotateMatrixZ;
-}
-
-Matrix4x4 MakeRotateAxisAngle(Vector3 axis, float angle)
-{
-	Matrix4x4 rotateMatrix{};
-
-	// 正規化された軸ベクトル
-	//Vector3 normalizedAxis = Normalize(axis);
-
-	float c = cosf(angle);
-	float s = sinf(angle);
-	float oneMinusC = 1.0f - c;
-
-	rotateMatrix.m[0][0] = axis.x * axis.x * oneMinusC + c;
-	rotateMatrix.m[0][1] = axis.x * axis.y * oneMinusC + axis.z * s;
-	rotateMatrix.m[0][2] = axis.x * axis.z * oneMinusC - axis.y * s;
-	rotateMatrix.m[0][3] = 0.0f;
-
-	rotateMatrix.m[1][0] = axis.y * axis.x * oneMinusC - axis.z * s;
-	rotateMatrix.m[1][1] = axis.y * axis.y * oneMinusC + c;
-	rotateMatrix.m[1][2] = axis.y * axis.z * oneMinusC + axis.x * s;
-	rotateMatrix.m[1][3] = 0.0f;
-
-	rotateMatrix.m[2][0] = axis.z * axis.x * oneMinusC + axis.y * s;
-	rotateMatrix.m[2][1] = axis.z * axis.y * oneMinusC - axis.x * s;
-	rotateMatrix.m[2][2] = axis.z * axis.z * oneMinusC + c;
-	rotateMatrix.m[2][3] = 0.0f;
-
-	rotateMatrix.m[3][0] = 0.0f;
-	rotateMatrix.m[3][1] = 0.0f;
-	rotateMatrix.m[3][2] = 0.0f;
-	rotateMatrix.m[3][3] = 1.0f;
-
-	return rotateMatrix;
-}
-
-Matrix4x4 DirectionToDirection(const Vector3& from, const Vector3& to)
-{
-	Matrix4x4 result{};
-
-	Vector3 u = from;
-	Vector3 v = to;
-
-	float cosTheta = Dot(u, v);
-
-	// 同方向：回転不要
-	if (cosTheta > 0.99999f) {
-		return {
-			1,0,0,0,
-			0,1,0,0,
-			0,0,1,0,
-			0,0,0,1
-		};
-	}
-
-	// 真逆方向：任意軸で180度回転
-	if (cosTheta < -0.99999f) {
-		Vector3 axis;
-		if (fabs(u.x) < fabs(u.y) && fabs(u.x) < fabs(u.z)) {
-			axis = Vector3{ 1,0,0 }; // x軸とあまり平行でない
-		} else if (fabs(u.y) < fabs(u.z)) {
-			axis = Vector3{ 0,1,0 };
-		} else {
-			axis = Vector3{ 0,0,1 };
-		}
-		axis = Normalize(Cross(u, axis)); // 直交する軸を作る
-		return MakeRotateAxisAngle(axis, static_cast<float>(M_PI)); // π(180°)回転
-	}
-
-	// 通常ケース
-	Vector3 axis = Normalize(Cross(u, v));
-	float sinTheta = Length(Cross(u, v));
-
-	float oneMinusC = 1.0f - cosTheta;
-
-	result.m[0][0] = axis.x * axis.x * oneMinusC + cosTheta;
-	result.m[0][1] = axis.x * axis.y * oneMinusC + axis.z * sinTheta;
-	result.m[0][2] = axis.x * axis.z * oneMinusC - axis.y * sinTheta;
-	result.m[0][3] = 0.0f;
-
-	result.m[1][0] = axis.y * axis.x * oneMinusC - axis.z * sinTheta;
-	result.m[1][1] = axis.y * axis.y * oneMinusC + cosTheta;
-	result.m[1][2] = axis.y * axis.z * oneMinusC + axis.x * sinTheta;
-	result.m[1][3] = 0.0f;
-
-	result.m[2][0] = axis.z * axis.x * oneMinusC + axis.y * sinTheta;
-	result.m[2][1] = axis.z * axis.y * oneMinusC - axis.x * sinTheta;
-	result.m[2][2] = axis.z * axis.z * oneMinusC + cosTheta;
-	result.m[2][3] = 0.0f;
-
-	result.m[3][0] = 0.0f;
-	result.m[3][1] = 0.0f;
-	result.m[3][2] = 0.0f;
-	result.m[3][3] = 1.0f;
+	result.x = imaginaryResult.x;
+	result.y = imaginaryResult.y;
+	result.z = imaginaryResult.z;
 
 	return result;
 }
 
-
-//Matrix4x4 DirectionToDirection(const Vector3& from, const Vector3& to)
-//{
-//	Matrix4x4 result{};
-//
-//	Vector3 u = from;
-//	Vector3 v = to;
-//
-//	Vector3 axis = Normalize(Cross(u, v));
-//	float cosTheta = Dot(u, v);
-//	float sinTheta = Length(Cross(u, v));
-//	float oneMinusC = 1.0f - cosTheta;
-//
-//	result.m[0][0] = axis.x * axis.x * oneMinusC + cosTheta;
-//	result.m[0][1] = axis.x * axis.y * oneMinusC + axis.z * sinTheta;
-//	result.m[0][2] = axis.x * axis.z * oneMinusC - axis.y * sinTheta;
-//	result.m[0][3] = 0.0f;
-//
-//	result.m[1][0] = axis.y * axis.x * oneMinusC - axis.z * sinTheta;
-//	result.m[1][1] = axis.y * axis.y * oneMinusC + cosTheta;
-//	result.m[1][2] = axis.y * axis.z * oneMinusC + axis.x * sinTheta;
-//	result.m[1][3] = 0.0f;
-//
-//	result.m[2][0] = axis.z * axis.x * oneMinusC + axis.y * sinTheta;
-//	result.m[2][1] = axis.z * axis.y * oneMinusC - axis.x * sinTheta;
-//	result.m[2][2] = axis.z * axis.z * oneMinusC + cosTheta;
-//	result.m[2][3] = 0.0f;
-//
-//	result.m[3][0] = 0.0f;
-//	result.m[3][1] = 0.0f;
-//	result.m[3][2] = 0.0f;
-//	result.m[3][3] = 1.0f;
-//
-//	return result;
-//}
-
-void MatrixScreenPrintf(int x, int y, const Matrix4x4& matrix)
+Quaternion IdentityQuaternion()
 {
-	for (int row = 0; row < 4; ++row) {
-		for (int column = 0; column < 4; ++column) {
-			Novice::ScreenPrintf(
-				x + column * kColumnWidth, y + row * kRowHeight, "%6.3f", matrix.m[row][column]);
-		}
-	}
-}
+	Quaternion result;
 
-Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix)
-{
-	Vector3 resultVector3;
+	result.x = 0.0f;
+	result.y = 0.0f;
+	result.z = 0.0f;
+	result.w = 1.0f;
 
-	resultVector3.x = vector.x * matrix.m[0][0] + vector.y * matrix.m[1][0] + vector.z * matrix.m[2][0] + 1.0f * matrix.m[3][0];
-	resultVector3.y = vector.x * matrix.m[0][1] + vector.y * matrix.m[1][1] + vector.z * matrix.m[2][1] + 1.0f * matrix.m[3][1];
-	resultVector3.z = vector.x * matrix.m[0][2] + vector.y * matrix.m[1][2] + vector.z * matrix.m[2][2] + 1.0f * matrix.m[3][2];
-
-	float w = vector.x * matrix.m[0][3] + vector.y * matrix.m[1][3] + vector.z * matrix.m[2][3] + 1.0f * matrix.m[3][3];
-
-	assert(w != 0.0f);
-
-	resultVector3.x /= w;
-	resultVector3.y /= w;
-	resultVector3.z /= w;
-
-	return resultVector3;
-}
-
-Vector3 Leap(const Vector3& v1, const Vector3& v2, float t)
-{
-	Vector3 result;
-	result.x = v1.x + (v2.x - v1.x) * t;
-	result.y = v1.y + (v2.y - v1.y) * t;
-	result.z = v1.z + (v2.z - v1.z) * t;
 	return result;
 }
 
-//Vector3 Leap(const Vector3& v1, const Vector3& v2, float t)
-//{
-//	Vector3 result;
-//
-//	result.x = t * v1.x + (1.0f - t) * v2.x;
-//	result.y = t * v1.y + (1.0f - t) * v2.y;
-//	result.z = t * v1.z + (1.0f - t) * v2.z;
-//
-//	return result;
-//}
-
-void DrawBezier(const Vector3& controlPoint0, const Vector3& controlPoint1, const Vector3& controlPoint2, const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix, int division, uint32_t color)
+Quaternion Conjugate(const Quaternion& quaternion)
 {
-	for (int index = 0; index < division; ++index) {
-		float t0 = static_cast<float>(index) / static_cast<float>(division);
-		float t1 = static_cast<float>(index + 1.0f) / static_cast<float>(division);
+	Quaternion result;
 
-		Vector3 b0 = Leap(Leap(controlPoint0, controlPoint1, t0), Leap(controlPoint1, controlPoint2, t0), t0);
-		Vector3 b1 = Leap(Leap(controlPoint0, controlPoint1, t1), Leap(controlPoint1, controlPoint2, t1), t1);
+	result = { quaternion.x * -1.0f,quaternion.y * -1.0f,quaternion.z * -1.0f,quaternion.w };
 
-		// 変換
-		Segment transformedSegment = {
-			Transform(Transform(b0,viewProjectionMatrix),viewportMatrix),
-			Transform(Transform(b1,viewProjectionMatrix),viewportMatrix),
-		};
-
-		// 描画
-		Novice::DrawLine(
-			static_cast<int>(transformedSegment.origin.x),
-			static_cast<int>(transformedSegment.origin.y),
-			static_cast<int>(transformedSegment.diff.x),
-			static_cast<int>(transformedSegment.diff.y),
-			color
-		);
-	}
+	return result;
 }
 
-float Cotangent(float theta)
+float Norm(const Quaternion& quaternion)
 {
-	float cotngent;
+	float result;
 
-	cotngent = 1.0f / std::tanf(theta);
+	result = sqrtf(powf(quaternion.x, 2.0f) + powf(quaternion.y, 2.0f) + powf(quaternion.z, 2.0f) + powf(quaternion.w, 2.0f));
 
-	return cotngent;
+	return result;
 }
 
-void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix) {
-	const float kGridHalfWidth = 2.0f;
-	const uint32_t kSubdivision = 10;
-	const float kGridEvery = (kGridHalfWidth * 2.0f) / static_cast<float>(kSubdivision);
-
-	for (uint32_t i = 0; i <= kSubdivision; ++i) {
-		float offset = -kGridHalfWidth + i * kGridEvery;
-
-		// 色を決定（中央線だけ黒、それ以外は灰色）
-		uint32_t color = (offset == 0.0f) ? 0x000000FF : 0xAAAAAAFF;
-
-		// Z方向（X軸に平行）
-		Vector3 start = { -kGridHalfWidth, 0.0f, offset };
-		Vector3 end = { kGridHalfWidth, 0.0f, offset };
-		start = Transform(Transform(start, viewProjectionMatrix), viewportMatrix);
-		end = Transform(Transform(end, viewProjectionMatrix), viewportMatrix);
-		Novice::DrawLine(static_cast<int>(start.x), static_cast<int>(start.y), static_cast<int>(end.x), static_cast<int>(end.y), color);
-
-		// X方向（Z軸に平行）
-		start = { offset, 0.0f, -kGridHalfWidth };
-		end = { offset, 0.0f, kGridHalfWidth };
-		start = Transform(Transform(start, viewProjectionMatrix), viewportMatrix);
-		end = Transform(Transform(end, viewProjectionMatrix), viewportMatrix);
-		Novice::DrawLine(static_cast<int>(start.x), static_cast<int>(start.y), static_cast<int>(end.x), static_cast<int>(end.y), color);
-	}
-}
-Matrix4x4 MakeAffineMatrix(Vector3 scale, Vector3 rotate, Vector3 translate)
+Quaternion Normalize(const Quaternion& quaternion)
 {
-	//====================
-	// 拡縮の行列の作成
-	//====================
-	Matrix4x4 scaleMatrix4x4;
-	scaleMatrix4x4.m[0][0] = scale.x;
-	scaleMatrix4x4.m[0][1] = 0.0f;
-	scaleMatrix4x4.m[0][2] = 0.0f;
-	scaleMatrix4x4.m[0][3] = 0.0f;
+	Quaternion result;
 
-	scaleMatrix4x4.m[1][0] = 0.0f;
-	scaleMatrix4x4.m[1][1] = scale.y;
-	scaleMatrix4x4.m[1][2] = 0.0f;
-	scaleMatrix4x4.m[1][3] = 0.0f;
+	result = { (quaternion.x / Norm(quaternion)),(quaternion.y / Norm(quaternion)), (quaternion.z / Norm(quaternion)), (quaternion.w / Norm(quaternion)) };
 
-	scaleMatrix4x4.m[2][0] = 0.0f;
-	scaleMatrix4x4.m[2][1] = 0.0f;
-	scaleMatrix4x4.m[2][2] = scale.z;
-	scaleMatrix4x4.m[2][3] = 0.0f;
-
-	scaleMatrix4x4.m[3][0] = 0.0f;
-	scaleMatrix4x4.m[3][1] = 0.0f;
-	scaleMatrix4x4.m[3][2] = 0.0f;
-	scaleMatrix4x4.m[3][3] = 1.0f;
-
-	//===================
-	// 回転の行列の作成
-	//===================
-	// Xの回転行列
-	Matrix4x4 rotateMatrixX;
-	rotateMatrixX.m[0][0] = 1.0f;
-	rotateMatrixX.m[0][1] = 0.0f;
-	rotateMatrixX.m[0][2] = 0.0f;
-	rotateMatrixX.m[0][3] = 0.0f;
-
-	rotateMatrixX.m[1][0] = 0.0f;
-	rotateMatrixX.m[1][1] = cosf(rotate.x);
-	rotateMatrixX.m[1][2] = sinf(rotate.x);
-	rotateMatrixX.m[1][3] = 0.0f;
-
-	rotateMatrixX.m[2][0] = 0.0f;
-	rotateMatrixX.m[2][1] = -sinf(rotate.x);
-	rotateMatrixX.m[2][2] = cosf(rotate.x);
-	rotateMatrixX.m[2][3] = 0.0f;
-
-	rotateMatrixX.m[3][0] = 0.0f;
-	rotateMatrixX.m[3][1] = 0.0f;
-	rotateMatrixX.m[3][2] = 0.0f;
-	rotateMatrixX.m[3][3] = 1.0f;
-
-	// Yの回転行列
-	Matrix4x4 rotateMatrixY;
-	rotateMatrixY.m[0][0] = cosf(rotate.y);
-	rotateMatrixY.m[0][1] = 0.0f;
-	rotateMatrixY.m[0][2] = -sinf(rotate.y);
-	rotateMatrixY.m[0][3] = 0.0f;
-
-	rotateMatrixY.m[1][0] = 0.0f;
-	rotateMatrixY.m[1][1] = 1.0f;
-	rotateMatrixY.m[1][2] = 0.0f;
-	rotateMatrixY.m[1][3] = 0.0f;
-
-	rotateMatrixY.m[2][0] = sinf(rotate.y);
-	rotateMatrixY.m[2][1] = 0.0f;
-	rotateMatrixY.m[2][2] = cosf(rotate.y);
-	rotateMatrixY.m[2][3] = 0.0f;
-
-	rotateMatrixY.m[3][0] = 0.0f;
-	rotateMatrixY.m[3][1] = 0.0f;
-	rotateMatrixY.m[3][2] = 0.0f;
-	rotateMatrixY.m[3][3] = 1.0f;
-
-	// Zの回転行列
-	Matrix4x4 rotateMatrixZ;
-	rotateMatrixZ.m[0][0] = cosf(rotate.z);
-	rotateMatrixZ.m[0][1] = sinf(rotate.z);
-	rotateMatrixZ.m[0][2] = 0.0f;
-	rotateMatrixZ.m[0][3] = 0.0f;
-
-	rotateMatrixZ.m[1][0] = -sinf(rotate.z);
-	rotateMatrixZ.m[1][1] = cosf(rotate.z);
-	rotateMatrixZ.m[1][2] = 0.0f;
-	rotateMatrixZ.m[1][3] = 0.0f;
-
-	rotateMatrixZ.m[2][0] = 0.0f;
-	rotateMatrixZ.m[2][1] = 0.0f;
-	rotateMatrixZ.m[2][2] = 1.0f;
-	rotateMatrixZ.m[2][3] = 0.0f;
-
-	rotateMatrixZ.m[3][0] = 0.0f;
-	rotateMatrixZ.m[3][1] = 0.0f;
-	rotateMatrixZ.m[3][2] = 0.0f;
-	rotateMatrixZ.m[3][3] = 1.0f;
-
-	// 回転行列の作成
-	Matrix4x4 rotateMatrix4x4;
-
-	rotateMatrix4x4 = Multiply(rotateMatrixX, Multiply(rotateMatrixY, rotateMatrixZ));
-
-	//==================
-	// 移動の行列の作成
-	//==================
-	Matrix4x4 translateMatrix4x4;
-	translateMatrix4x4.m[0][0] = 1.0f;
-	translateMatrix4x4.m[0][1] = 0.0f;
-	translateMatrix4x4.m[0][2] = 0.0f;
-	translateMatrix4x4.m[0][3] = 0.0f;
-
-	translateMatrix4x4.m[1][0] = 0.0f;
-	translateMatrix4x4.m[1][1] = 1.0f;
-	translateMatrix4x4.m[1][2] = 0.0f;
-	translateMatrix4x4.m[1][3] = 0.0f;
-
-	translateMatrix4x4.m[2][0] = 0.0f;
-	translateMatrix4x4.m[2][1] = 0.0f;
-	translateMatrix4x4.m[2][2] = 1.0f;
-	translateMatrix4x4.m[2][3] = 0.0f;
-
-	translateMatrix4x4.m[3][0] = translate.x;
-	translateMatrix4x4.m[3][1] = translate.y;
-	translateMatrix4x4.m[3][2] = translate.z;
-	translateMatrix4x4.m[3][3] = 1.0f;
-
-	//====================
-	// アフィン行列の作成
-	//====================
-	// 上で作った行列からアフィン行列を作る
-	// アフィン行列の作成（スケール→回転→移動の順）
-	Matrix4x4 affineMatrix4x4;
-	affineMatrix4x4 = Multiply(scaleMatrix4x4, Multiply(rotateMatrix4x4, translateMatrix4x4));
-
-	return  affineMatrix4x4;
+	return result;
 }
 
-Matrix4x4 Inverse(Matrix4x4 matrix4x4)
+Quaternion Inverse(const Quaternion& quaternion)
 {
-	// 行列式|A|を求める
-	float bottom =
-		(matrix4x4.m[0][0] * matrix4x4.m[1][1] * matrix4x4.m[2][2] * matrix4x4.m[3][3])
-		+ (matrix4x4.m[0][0] * matrix4x4.m[1][2] * matrix4x4.m[2][3] * matrix4x4.m[3][1])
-		+ (matrix4x4.m[0][0] * matrix4x4.m[1][3] * matrix4x4.m[2][1] * matrix4x4.m[3][2])
-		- (matrix4x4.m[0][0] * matrix4x4.m[1][3] * matrix4x4.m[2][2] * matrix4x4.m[3][1])
-		- (matrix4x4.m[0][0] * matrix4x4.m[1][2] * matrix4x4.m[2][1] * matrix4x4.m[3][3])
-		- (matrix4x4.m[0][0] * matrix4x4.m[1][1] * matrix4x4.m[2][3] * matrix4x4.m[3][2])
-		- (matrix4x4.m[0][1] * matrix4x4.m[1][0] * matrix4x4.m[2][2] * matrix4x4.m[3][3])
-		- (matrix4x4.m[0][2] * matrix4x4.m[1][0] * matrix4x4.m[2][3] * matrix4x4.m[3][1])
-		- (matrix4x4.m[0][3] * matrix4x4.m[1][0] * matrix4x4.m[2][1] * matrix4x4.m[3][2])
-		+ (matrix4x4.m[0][3] * matrix4x4.m[1][0] * matrix4x4.m[2][2] * matrix4x4.m[3][1])
-		+ (matrix4x4.m[0][2] * matrix4x4.m[1][0] * matrix4x4.m[2][1] * matrix4x4.m[3][3])
-		+ (matrix4x4.m[0][1] * matrix4x4.m[1][0] * matrix4x4.m[2][3] * matrix4x4.m[3][2])
-		+ (matrix4x4.m[0][1] * matrix4x4.m[1][2] * matrix4x4.m[2][0] * matrix4x4.m[3][3])
-		+ (matrix4x4.m[0][2] * matrix4x4.m[1][3] * matrix4x4.m[2][0] * matrix4x4.m[3][1])
-		+ (matrix4x4.m[0][3] * matrix4x4.m[1][1] * matrix4x4.m[2][0] * matrix4x4.m[3][2])
-		- (matrix4x4.m[0][3] * matrix4x4.m[1][2] * matrix4x4.m[2][0] * matrix4x4.m[3][1])
-		- (matrix4x4.m[0][2] * matrix4x4.m[1][1] * matrix4x4.m[2][0] * matrix4x4.m[3][3])
-		- (matrix4x4.m[0][1] * matrix4x4.m[1][3] * matrix4x4.m[2][0] * matrix4x4.m[3][2])
-		- (matrix4x4.m[0][1] * matrix4x4.m[1][2] * matrix4x4.m[2][3] * matrix4x4.m[3][0])
-		- (matrix4x4.m[0][2] * matrix4x4.m[1][3] * matrix4x4.m[2][1] * matrix4x4.m[3][0])
-		- (matrix4x4.m[0][3] * matrix4x4.m[1][1] * matrix4x4.m[2][2] * matrix4x4.m[3][0])
-		+ (matrix4x4.m[0][3] * matrix4x4.m[1][2] * matrix4x4.m[2][1] * matrix4x4.m[3][0])
-		+ (matrix4x4.m[0][2] * matrix4x4.m[1][1] * matrix4x4.m[2][3] * matrix4x4.m[3][0])
-		+ (matrix4x4.m[0][1] * matrix4x4.m[1][3] * matrix4x4.m[2][2] * matrix4x4.m[3][0]);
+	Quaternion result;
 
-	Matrix4x4 resoultMatrix;
+	// 共役を求める
+	Quaternion conj = Conjugate(quaternion);
 
-	// 1行目
-	resoultMatrix.m[0][0] = 1.0f / bottom * (
-		(matrix4x4.m[1][1] * matrix4x4.m[2][2] * matrix4x4.m[3][3])
-		+ (matrix4x4.m[1][2] * matrix4x4.m[2][3] * matrix4x4.m[3][1])
-		+ (matrix4x4.m[1][3] * matrix4x4.m[2][1] * matrix4x4.m[3][2])
-		- (matrix4x4.m[1][3] * matrix4x4.m[2][2] * matrix4x4.m[3][1])
-		- (matrix4x4.m[1][2] * matrix4x4.m[2][1] * matrix4x4.m[3][3])
-		- (matrix4x4.m[1][1] * matrix4x4.m[2][3] * matrix4x4.m[3][2]));
+	// ノルムを求める
+	float norm = Norm(quaternion);
 
-	resoultMatrix.m[0][1] = 1.0f / bottom * (
-		-(matrix4x4.m[0][1] * matrix4x4.m[2][2] * matrix4x4.m[3][3])
-		- (matrix4x4.m[0][2] * matrix4x4.m[2][3] * matrix4x4.m[3][1])
-		- (matrix4x4.m[0][3] * matrix4x4.m[2][1] * matrix4x4.m[3][2])
-		+ (matrix4x4.m[0][3] * matrix4x4.m[2][2] * matrix4x4.m[3][1])
-		+ (matrix4x4.m[0][2] * matrix4x4.m[2][1] * matrix4x4.m[3][3])
-		+ (matrix4x4.m[0][1] * matrix4x4.m[2][3] * matrix4x4.m[3][2]));
+	// 共役をノルムの2乗で割る
+	result = {
+		conj.x / powf(norm,2.0f),
+		conj.y / powf(norm,2.0f),
+		conj.z / powf(norm,2.0f),
+		conj.w / powf(norm,2.0f)
+	};
 
-	resoultMatrix.m[0][2] = 1.0f / bottom * (
-		(matrix4x4.m[0][1] * matrix4x4.m[1][2] * matrix4x4.m[3][3])
-		+ (matrix4x4.m[0][2] * matrix4x4.m[1][3] * matrix4x4.m[3][1])
-		+ (matrix4x4.m[0][3] * matrix4x4.m[1][1] * matrix4x4.m[3][2])
-		- (matrix4x4.m[0][3] * matrix4x4.m[1][2] * matrix4x4.m[3][1])
-		- (matrix4x4.m[0][2] * matrix4x4.m[1][1] * matrix4x4.m[3][3])
-		- (matrix4x4.m[0][1] * matrix4x4.m[1][3] * matrix4x4.m[3][2]));
-
-	resoultMatrix.m[0][3] = 1.0f / bottom * (
-		-(matrix4x4.m[0][1] * matrix4x4.m[1][2] * matrix4x4.m[2][3])
-		- (matrix4x4.m[0][2] * matrix4x4.m[1][3] * matrix4x4.m[2][1])
-		- (matrix4x4.m[0][3] * matrix4x4.m[1][1] * matrix4x4.m[2][2])
-		+ (matrix4x4.m[0][3] * matrix4x4.m[1][2] * matrix4x4.m[2][1])
-		+ (matrix4x4.m[0][2] * matrix4x4.m[1][1] * matrix4x4.m[2][3])
-		+ (matrix4x4.m[0][1] * matrix4x4.m[1][3] * matrix4x4.m[2][2]));
-
-	// 2行目
-	resoultMatrix.m[1][0] = 1.0f / bottom * (
-		-(matrix4x4.m[1][0] * matrix4x4.m[2][2] * matrix4x4.m[3][3])
-		- (matrix4x4.m[1][2] * matrix4x4.m[2][3] * matrix4x4.m[3][0])
-		- (matrix4x4.m[1][3] * matrix4x4.m[2][0] * matrix4x4.m[3][2])
-		+ (matrix4x4.m[1][3] * matrix4x4.m[2][2] * matrix4x4.m[3][0])
-		+ (matrix4x4.m[1][2] * matrix4x4.m[2][0] * matrix4x4.m[3][3])
-		+ (matrix4x4.m[1][0] * matrix4x4.m[2][3] * matrix4x4.m[3][2]));
-
-	resoultMatrix.m[1][1] = 1.0f / bottom * (
-		(matrix4x4.m[0][0] * matrix4x4.m[2][2] * matrix4x4.m[3][3])
-		+ (matrix4x4.m[0][2] * matrix4x4.m[2][3] * matrix4x4.m[3][0])
-		+ (matrix4x4.m[0][3] * matrix4x4.m[2][0] * matrix4x4.m[3][2])
-		- (matrix4x4.m[0][3] * matrix4x4.m[2][2] * matrix4x4.m[3][0])
-		- (matrix4x4.m[0][2] * matrix4x4.m[2][0] * matrix4x4.m[3][3])
-		- (matrix4x4.m[0][0] * matrix4x4.m[2][3] * matrix4x4.m[3][2]));
-
-	resoultMatrix.m[1][2] = 1.0f / bottom * (
-		-(matrix4x4.m[0][0] * matrix4x4.m[1][2] * matrix4x4.m[3][3])
-		- (matrix4x4.m[0][2] * matrix4x4.m[1][3] * matrix4x4.m[3][0])
-		- (matrix4x4.m[0][3] * matrix4x4.m[1][0] * matrix4x4.m[3][2])
-		+ (matrix4x4.m[0][3] * matrix4x4.m[1][2] * matrix4x4.m[3][0])
-		+ (matrix4x4.m[0][2] * matrix4x4.m[1][0] * matrix4x4.m[3][3])
-		+ (matrix4x4.m[0][0] * matrix4x4.m[1][3] * matrix4x4.m[3][2]));
-
-	resoultMatrix.m[1][3] = 1.0f / bottom * (
-		(matrix4x4.m[0][0] * matrix4x4.m[1][2] * matrix4x4.m[2][3])
-		+ (matrix4x4.m[0][2] * matrix4x4.m[1][3] * matrix4x4.m[2][0])
-		+ (matrix4x4.m[0][3] * matrix4x4.m[1][0] * matrix4x4.m[2][2])
-		- (matrix4x4.m[0][3] * matrix4x4.m[1][2] * matrix4x4.m[2][0])
-		- (matrix4x4.m[0][2] * matrix4x4.m[1][0] * matrix4x4.m[2][3])
-		- (matrix4x4.m[0][0] * matrix4x4.m[1][3] * matrix4x4.m[2][2]));
-
-	// 3行目
-	resoultMatrix.m[2][0] = 1.0f / bottom * (
-		(matrix4x4.m[1][0] * matrix4x4.m[2][1] * matrix4x4.m[3][3])
-		+ (matrix4x4.m[1][1] * matrix4x4.m[2][3] * matrix4x4.m[3][0])
-		+ (matrix4x4.m[1][3] * matrix4x4.m[2][0] * matrix4x4.m[3][1])
-		- (matrix4x4.m[1][3] * matrix4x4.m[2][1] * matrix4x4.m[3][0])
-		- (matrix4x4.m[1][1] * matrix4x4.m[2][0] * matrix4x4.m[3][3])
-		- (matrix4x4.m[1][0] * matrix4x4.m[2][3] * matrix4x4.m[3][1]));
-
-	resoultMatrix.m[2][1] = 1.0f / bottom * (
-		-(matrix4x4.m[0][0] * matrix4x4.m[2][1] * matrix4x4.m[3][3])
-		- (matrix4x4.m[0][1] * matrix4x4.m[2][3] * matrix4x4.m[3][0])
-		- (matrix4x4.m[0][3] * matrix4x4.m[2][0] * matrix4x4.m[3][1])
-		+ (matrix4x4.m[0][3] * matrix4x4.m[2][1] * matrix4x4.m[3][0])
-		+ (matrix4x4.m[0][1] * matrix4x4.m[2][0] * matrix4x4.m[3][3])
-		+ (matrix4x4.m[0][0] * matrix4x4.m[2][3] * matrix4x4.m[3][1]));
-
-	resoultMatrix.m[2][2] = 1.0f / bottom * (
-		(matrix4x4.m[0][0] * matrix4x4.m[1][1] * matrix4x4.m[3][3])
-		+ (matrix4x4.m[0][1] * matrix4x4.m[1][3] * matrix4x4.m[3][0])
-		+ (matrix4x4.m[0][3] * matrix4x4.m[1][0] * matrix4x4.m[3][1])
-		- (matrix4x4.m[0][3] * matrix4x4.m[1][1] * matrix4x4.m[3][0])
-		- (matrix4x4.m[0][1] * matrix4x4.m[1][0] * matrix4x4.m[3][3])
-		- (matrix4x4.m[0][0] * matrix4x4.m[1][3] * matrix4x4.m[3][1]));
-
-	resoultMatrix.m[2][3] = 1.0f / bottom * (
-		-(matrix4x4.m[0][0] * matrix4x4.m[1][1] * matrix4x4.m[2][3])
-		- (matrix4x4.m[0][1] * matrix4x4.m[1][3] * matrix4x4.m[2][0])
-		- (matrix4x4.m[0][3] * matrix4x4.m[1][0] * matrix4x4.m[2][1])
-		+ (matrix4x4.m[0][3] * matrix4x4.m[1][1] * matrix4x4.m[2][0])
-		+ (matrix4x4.m[0][1] * matrix4x4.m[1][0] * matrix4x4.m[2][3])
-		+ (matrix4x4.m[0][0] * matrix4x4.m[1][3] * matrix4x4.m[2][1]));
-
-	// 4行目
-	resoultMatrix.m[3][0] = 1.0f / bottom * (
-		-(matrix4x4.m[1][0] * matrix4x4.m[2][1] * matrix4x4.m[3][2])
-		- (matrix4x4.m[1][1] * matrix4x4.m[2][2] * matrix4x4.m[3][0])
-		- (matrix4x4.m[1][2] * matrix4x4.m[2][0] * matrix4x4.m[3][1])
-		+ (matrix4x4.m[1][2] * matrix4x4.m[2][1] * matrix4x4.m[3][0])
-		+ (matrix4x4.m[1][1] * matrix4x4.m[2][0] * matrix4x4.m[3][2])
-		+ (matrix4x4.m[1][0] * matrix4x4.m[2][2] * matrix4x4.m[3][1]));
-
-	resoultMatrix.m[3][1] = 1.0f / bottom * (
-		(matrix4x4.m[0][0] * matrix4x4.m[2][1] * matrix4x4.m[3][2])
-		+ (matrix4x4.m[0][1] * matrix4x4.m[2][2] * matrix4x4.m[3][0])
-		+ (matrix4x4.m[0][2] * matrix4x4.m[2][0] * matrix4x4.m[3][1])
-		- (matrix4x4.m[0][2] * matrix4x4.m[2][1] * matrix4x4.m[3][0])
-		- (matrix4x4.m[0][1] * matrix4x4.m[2][0] * matrix4x4.m[3][2])
-		- (matrix4x4.m[0][0] * matrix4x4.m[2][2] * matrix4x4.m[3][1]));
-
-	resoultMatrix.m[3][2] = 1.0f / bottom * (
-		-(matrix4x4.m[0][0] * matrix4x4.m[1][1] * matrix4x4.m[3][2])
-		- (matrix4x4.m[0][1] * matrix4x4.m[1][2] * matrix4x4.m[3][0])
-		- (matrix4x4.m[0][2] * matrix4x4.m[1][0] * matrix4x4.m[3][1])
-		+ (matrix4x4.m[0][2] * matrix4x4.m[1][1] * matrix4x4.m[3][0])
-		+ (matrix4x4.m[0][1] * matrix4x4.m[1][0] * matrix4x4.m[3][2])
-		+ (matrix4x4.m[0][0] * matrix4x4.m[1][2] * matrix4x4.m[3][1]));
-
-	resoultMatrix.m[3][3] = 1.0f / bottom * (
-		(matrix4x4.m[0][0] * matrix4x4.m[1][1] * matrix4x4.m[2][2])
-		+ (matrix4x4.m[0][1] * matrix4x4.m[1][2] * matrix4x4.m[2][0])
-		+ (matrix4x4.m[0][2] * matrix4x4.m[1][0] * matrix4x4.m[2][1])
-		- (matrix4x4.m[0][2] * matrix4x4.m[1][1] * matrix4x4.m[2][0])
-		- (matrix4x4.m[0][1] * matrix4x4.m[1][0] * matrix4x4.m[2][2])
-		- (matrix4x4.m[0][0] * matrix4x4.m[1][2] * matrix4x4.m[2][1]));
-
-	return resoultMatrix;
+	return result;
 }
 
-Matrix4x4 Multiply(Matrix4x4 matrix1, Matrix4x4 matrix2)
-{
-	Matrix4x4 resoultMatrix4x4;
-
-	resoultMatrix4x4.m[0][0] = matrix1.m[0][0] * matrix2.m[0][0] + matrix1.m[0][1] * matrix2.m[1][0] + matrix1.m[0][2] * matrix2.m[2][0] + matrix1.m[0][3] * matrix2.m[3][0];
-	resoultMatrix4x4.m[0][1] = matrix1.m[0][0] * matrix2.m[0][1] + matrix1.m[0][1] * matrix2.m[1][1] + matrix1.m[0][2] * matrix2.m[2][1] + matrix1.m[0][3] * matrix2.m[3][1];
-	resoultMatrix4x4.m[0][2] = matrix1.m[0][0] * matrix2.m[0][2] + matrix1.m[0][1] * matrix2.m[1][2] + matrix1.m[0][2] * matrix2.m[2][2] + matrix1.m[0][3] * matrix2.m[3][2];
-	resoultMatrix4x4.m[0][3] = matrix1.m[0][0] * matrix2.m[0][3] + matrix1.m[0][1] * matrix2.m[1][3] + matrix1.m[0][2] * matrix2.m[2][3] + matrix1.m[0][3] * matrix2.m[3][3];
-
-	resoultMatrix4x4.m[1][0] = matrix1.m[1][0] * matrix2.m[0][0] + matrix1.m[1][1] * matrix2.m[1][0] + matrix1.m[1][2] * matrix2.m[2][0] + matrix1.m[1][3] * matrix2.m[3][0];
-	resoultMatrix4x4.m[1][1] = matrix1.m[1][0] * matrix2.m[0][1] + matrix1.m[1][1] * matrix2.m[1][1] + matrix1.m[1][2] * matrix2.m[2][1] + matrix1.m[1][3] * matrix2.m[3][1];
-	resoultMatrix4x4.m[1][2] = matrix1.m[1][0] * matrix2.m[0][2] + matrix1.m[1][1] * matrix2.m[1][2] + matrix1.m[1][2] * matrix2.m[2][2] + matrix1.m[1][3] * matrix2.m[3][2];
-	resoultMatrix4x4.m[1][3] = matrix1.m[1][0] * matrix2.m[0][3] + matrix1.m[1][1] * matrix2.m[1][3] + matrix1.m[1][2] * matrix2.m[2][3] + matrix1.m[1][3] * matrix2.m[3][3];
-
-	resoultMatrix4x4.m[2][0] = matrix1.m[2][0] * matrix2.m[0][0] + matrix1.m[2][1] * matrix2.m[1][0] + matrix1.m[2][2] * matrix2.m[2][0] + matrix1.m[2][3] * matrix2.m[3][0];
-	resoultMatrix4x4.m[2][1] = matrix1.m[2][0] * matrix2.m[0][1] + matrix1.m[2][1] * matrix2.m[1][1] + matrix1.m[2][2] * matrix2.m[2][1] + matrix1.m[2][3] * matrix2.m[3][1];
-	resoultMatrix4x4.m[2][2] = matrix1.m[2][0] * matrix2.m[0][2] + matrix1.m[2][1] * matrix2.m[1][2] + matrix1.m[2][2] * matrix2.m[2][2] + matrix1.m[2][3] * matrix2.m[3][2];
-	resoultMatrix4x4.m[2][3] = matrix1.m[2][0] * matrix2.m[0][3] + matrix1.m[2][1] * matrix2.m[1][3] + matrix1.m[2][2] * matrix2.m[2][3] + matrix1.m[2][3] * matrix2.m[3][3];
-
-	resoultMatrix4x4.m[3][0] = matrix1.m[3][0] * matrix2.m[0][0] + matrix1.m[3][1] * matrix2.m[1][0] + matrix1.m[3][2] * matrix2.m[2][0] + matrix1.m[3][3] * matrix2.m[3][0];
-	resoultMatrix4x4.m[3][1] = matrix1.m[3][0] * matrix2.m[0][1] + matrix1.m[3][1] * matrix2.m[1][1] + matrix1.m[3][2] * matrix2.m[2][1] + matrix1.m[3][3] * matrix2.m[3][1];
-	resoultMatrix4x4.m[3][2] = matrix1.m[3][0] * matrix2.m[0][2] + matrix1.m[3][1] * matrix2.m[1][2] + matrix1.m[3][2] * matrix2.m[2][2] + matrix1.m[3][3] * matrix2.m[3][2];
-	resoultMatrix4x4.m[3][3] = matrix1.m[3][0] * matrix2.m[0][3] + matrix1.m[3][1] * matrix2.m[1][3] + matrix1.m[3][2] * matrix2.m[2][3] + matrix1.m[3][3] * matrix2.m[3][3];
-
-	return resoultMatrix4x4;
-}
-
-Matrix4x4 MakeViewportMatrix(float left, float top, float width, float height, float minDepth, float maxDepth)
-{
-	Matrix4x4 viewportMatrix4x4;
-
-	viewportMatrix4x4.m[0][0] = width / 2.0f;
-	viewportMatrix4x4.m[0][1] = 0.0f;
-	viewportMatrix4x4.m[0][2] = 0.0f;
-	viewportMatrix4x4.m[0][3] = 0.0f;
-
-	viewportMatrix4x4.m[1][0] = 0.0f;
-	viewportMatrix4x4.m[1][1] = -height / 2.0f;
-	viewportMatrix4x4.m[1][2] = 0.0f;
-	viewportMatrix4x4.m[1][3] = 0.0f;
-
-	viewportMatrix4x4.m[2][0] = 0.0f;
-	viewportMatrix4x4.m[2][1] = 0.0f;
-	viewportMatrix4x4.m[2][2] = maxDepth - minDepth;
-	viewportMatrix4x4.m[2][3] = 0.0f;
-
-	viewportMatrix4x4.m[3][0] = left + width / 2.0f;
-	viewportMatrix4x4.m[3][1] = top + height / 2.0f;
-	viewportMatrix4x4.m[3][2] = minDepth;
-	viewportMatrix4x4.m[3][3] = 1.0f;
-
-	return viewportMatrix4x4;
-}
-
-void UpdateCameraByMouse(Vector3& cameraTranslate, Vector3& cameraRotate)
-{
-	// マウスでカメラ移動// マウス座標を取得
-	// マウス座標取得
-	int mouseX, mouseY;
-	Novice::GetMousePosition(&mouseX, &mouseY);
-
-	// 状態保持
-	static int prevMouseX = mouseX;
-	static int prevMouseY = mouseY;
-	static bool wasRotating = false;
-	static bool wasPanning = false;
-
-	// 左ボタン回転
-	bool isRotating = Novice::IsPressMouse(0); // 左ボタン
-	bool allowRotate =
-		isRotating && !ImGui::IsAnyItemActive() && !ImGui::IsAnyItemHovered();
-
-	// 右ボタン平行移動
-	bool isPanning = Novice::IsPressMouse(1); // 右ボタン
-	bool allowPan =
-		isPanning && !ImGui::IsAnyItemActive() && !ImGui::IsAnyItemHovered();
-
-	// 視点回転（左ドラッグ）
-	if (allowRotate) {
-		if (!wasRotating) {
-			prevMouseX = mouseX;
-			prevMouseY = mouseY;
-		}
-
-		float dx = static_cast<float>(mouseX - prevMouseX);
-		float dy = static_cast<float>(mouseY - prevMouseY);
-
-		cameraRotate.y -= dx * 0.001f;
-		cameraRotate.x -= dy * 0.001f;
-
-		const float piOver2 = 3.141592f / 2.0f;
-		cameraRotate.x = std::clamp(cameraRotate.x, -piOver2, piOver2);
-
-		prevMouseX = mouseX;
-		prevMouseY = mouseY;
-	}
-
-	// カメラ平行移動（右ドラッグ）
-	if (allowPan) {
-		if (!wasPanning) {
-			prevMouseX = mouseX;
-			prevMouseY = mouseY;
-		}
-
-		float dx = static_cast<float>(mouseX - prevMouseX);
-		float dy = static_cast<float>(mouseY - prevMouseY);
-
-		// カメラの向きに応じてX方向とY方向に動くように補正
-		float speed = 0.01f;
-		cameraTranslate.x -= dx * speed;
-		cameraTranslate.y += dy * speed;
-
-		prevMouseX = mouseX;
-		prevMouseY = mouseY;
-	}
-
-	wasRotating = isRotating;
-	wasPanning = isPanning;
-
-	// ホイールズーム
-	ImGuiIO& io = ImGui::GetIO();
-	cameraTranslate.z += io.MouseWheel * 0.5f;
-}
-
-void DrawSphere(const Vector3& center, float radius, const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix, uint32_t color) {
-	const uint32_t kSubdivision = 20; //分割数
-	const float kLatEvery = static_cast<float>(M_PI) / static_cast<float>(kSubdivision); // 緯度分割1つ分の角度 θd
-	const float kLonEvery = static_cast<float>(2.0f * M_PI) / static_cast<float>(kSubdivision); // 経度分割1つ分の角度 φd
-
-	// 緯度の方向に分割 -π/2~π/2
-	for (uint32_t latIndex = 0; latIndex < kSubdivision; ++latIndex) {
-		float lat = -static_cast<float>(M_PI) / 2.0f + kLatEvery * latIndex; // θ
-
-		// 経度の方向に分割 θ~2π
-		for (uint32_t lonIndex = 0; lonIndex < kSubdivision; ++lonIndex) {
-			float lon = kLonEvery * lonIndex; // φ
-
-			// 緯線
-			Vector3 a = {
-				center.x + radius * cosf(lat) * cosf(lon),
-				center.y + radius * sinf(lat),
-				center.z + radius * cosf(lat) * sinf(lon)
-			};
-
-			Vector3 b = {
-				center.x + radius * cosf(lat + kLatEvery) * cosf(lon),
-				center.y + radius * sinf(lat + kLatEvery),
-				center.z + radius * cosf(lat + kLatEvery) * sinf(lon)
-			};
-
-			// 経線
-			Vector3 c = {
-				center.x + radius * cosf(lat) * cosf(lon + kLonEvery),
-				center.y + radius * sinf(lat),
-				center.z + radius * cosf(lat) * sinf(lon + kLonEvery)
-			};
-
-			a = Transform(Transform(a, viewProjectionMatrix), viewportMatrix);
-			b = Transform(Transform(b, viewProjectionMatrix), viewportMatrix);
-			c = Transform(Transform(c, viewProjectionMatrix), viewportMatrix);
-
-			Novice::DrawLine((int)a.x, (int)a.y, (int)b.x, (int)b.y, color);
-			Novice::DrawLine((int)a.x, (int)a.y, (int)c.x, (int)c.y, color);
-		}
-	}
-}
-
-float Length(const Vector3& v)
-{
-	float length;
-
-	length = sqrtf(powf(v.x, 2.0f) + powf(v.y, 2.0f) + powf(v.z, 2.0f));
-
-	return length;
-}
-
-Vector3 Normalize(const Vector3& v)
-{
-	Vector3 normalizedV;
-
-	normalizedV = { v.x / Length(v),v.y / Length(v),v.z / Length(v) };
-
-	return normalizedV;
+void QuaternionScreenPrintf(int x, int y, const Quaternion& q, const char* label) {
+	Novice::ScreenPrintf(x, y, "%s", label);
+	Novice::ScreenPrintf(x + kColumnWidth, y, "x: %2.2f", q.x);
+	Novice::ScreenPrintf(x + kColumnWidth * 2, y, "y: %2.2f", q.y);
+	Novice::ScreenPrintf(x + kColumnWidth * 3, y, "z: %2.2f", q.z);
+	Novice::ScreenPrintf(x + kColumnWidth * 4, y, "w: %2.2f", q.w);
 }
 
 Vector3 Add(const Vector3& v1, const Vector3& v2)
@@ -1124,31 +342,4 @@ Vector3 Cross(const Vector3& v1, const Vector3& v2)
 	result.z = v1.x * v2.y - v1.y * v2.x;
 
 	return result;
-}
-
-Matrix4x4 MakePerspectiveFovMatrix(float fovY, float aspectRatio, float nearClip, float farClip)
-{
-	Matrix4x4 perspectiveFovMatrix;
-
-	perspectiveFovMatrix.m[0][0] = 1.0f / aspectRatio * Cotangent(fovY / 2.0f);
-	perspectiveFovMatrix.m[0][1] = 0.0f;
-	perspectiveFovMatrix.m[0][2] = 0.0f;
-	perspectiveFovMatrix.m[0][3] = 0.0f;
-
-	perspectiveFovMatrix.m[1][0] = 0.0f;
-	perspectiveFovMatrix.m[1][1] = Cotangent(fovY / 2.0f);
-	perspectiveFovMatrix.m[1][2] = 0.0f;
-	perspectiveFovMatrix.m[1][3] = 0.0f;
-
-	perspectiveFovMatrix.m[2][0] = 0.0f;
-	perspectiveFovMatrix.m[2][1] = 0.0f;
-	perspectiveFovMatrix.m[2][2] = farClip / (farClip - nearClip);
-	perspectiveFovMatrix.m[2][3] = 1.0f;
-
-	perspectiveFovMatrix.m[3][0] = 0.0f;
-	perspectiveFovMatrix.m[3][1] = 0.0f;
-	perspectiveFovMatrix.m[3][2] = (-nearClip * farClip) / (farClip - nearClip);
-	perspectiveFovMatrix.m[3][3] = 0.0f;
-
-	return perspectiveFovMatrix;
 }
