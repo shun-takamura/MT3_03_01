@@ -162,9 +162,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Vector3 baseCameraTranslate = cameraTranslate;  // 現在のカメラ基準位置
 	//Vector3 anchorAtCut;                            // 切断時のアンカー位置（基準）
 
-	float cameraLerpSpeed = 0.05f;         // 0.05〜0.2くらいで調整
-	Vector3 cameraOffset = { 0.0f,0.0f,-10.0f };
-
 	// 壁の位置の初期化
 	const float wallXMin = -5.0f;
 	const float wallXMax = 5.0f;
@@ -173,6 +170,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	Player* player = new Player();
 	player->Initialize();
+	Vector3 targetGoal;
+	Vector3 cameraTarget = { 0.0f,0.0f,0.0f };
+
+	float cameraLerpSpeed = 0.05f;         // 0.05〜0.2くらいで調整
+	Vector3 cameraOffset = { 0.0f,0.0f,-10.0f };
 
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
@@ -183,34 +185,30 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		memcpy(preKeys, keys, 256);
 		Novice::GetHitKeyStateAll(keys);
 
-		Vector3 targetGoal;
-		Vector3 cameraTarget;
 
 		///
 		/// ↓更新処理ここから
 		///
 
 
-		player->Update(keys,preKeys,deltaTime);
+		player->Update(keys, preKeys, deltaTime);
 
 		if (!player->GetIsCut()) {
 			// カメラの注視点をアンカーに設定
 			targetGoal = player->GetAnchorPosition();
-			cameraTarget = player->GetAnchorPosition();// カメラの注視点
 
 		} else {
 
 			targetGoal = player->GetPosition();
-			cameraTarget = player->GetPosition();
+			
 		}
 
-		
+
 		// カメラの処理
+		cameraTarget = Leap(cameraTarget, targetGoal, cameraLerpSpeed);
 		cameraTranslate = cameraTarget + cameraOffset;
 
-		cameraTarget = Leap(cameraTarget, targetGoal, cameraLerpSpeed);
-
-		//UpdateCameraByMouse(cameraTranslate, cameraRotate);
+		UpdateCameraByMouse(cameraTranslate, cameraRotate);
 
 		Matrix4x4 cameraMatrix = MakeAffineMatrix({ 1.0f, 1.0f, 1.0f }, cameraRotate, cameraTranslate);
 		Matrix4x4 viewMatrix = Inverse(cameraMatrix);
@@ -229,7 +227,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		///
 
 		// グリッドの描画
-		//DrawGrid(viewProjectionMatrix, viewportMatrix);
+		DrawGrid(viewProjectionMatrix, viewportMatrix);
 
 		// --- 壁の線を描画 ---
 		Vector3 wallPoints[4] = {
@@ -469,7 +467,7 @@ void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMa
 		Novice::DrawLine(static_cast<int>(start.x), static_cast<int>(start.y), static_cast<int>(end.x), static_cast<int>(end.y), color);
 	}
 }
-bool CapsuleIntersectsSegment3D(const Vector3& capsuleStart, const Vector3& capsuleEnd, float radius, const Vector3& segStart, const Vector3& segEnd){
+bool CapsuleIntersectsSegment3D(const Vector3& capsuleStart, const Vector3& capsuleEnd, float radius, const Vector3& segStart, const Vector3& segEnd) {
 	// カプセル軸方向
 	Vector3 u = capsuleEnd - capsuleStart;
 	Vector3 v = segEnd - segStart;
