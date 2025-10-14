@@ -210,7 +210,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		cameraTarget = Leap(cameraTarget, targetGoal, cameraLerpSpeed);
 
-		UpdateCameraByMouse(cameraTranslate, cameraRotate);
+		//UpdateCameraByMouse(cameraTranslate, cameraRotate);
 
 		Matrix4x4 cameraMatrix = MakeAffineMatrix({ 1.0f, 1.0f, 1.0f }, cameraRotate, cameraTranslate);
 		Matrix4x4 viewMatrix = Inverse(cameraMatrix);
@@ -229,7 +229,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		///
 
 		// グリッドの描画
-		DrawGrid(viewProjectionMatrix, viewportMatrix);
+		//DrawGrid(viewProjectionMatrix, viewportMatrix);
 
 		// --- 壁の線を描画 ---
 		Vector3 wallPoints[4] = {
@@ -247,7 +247,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		DrawSphere(player->GetPosition(), player->GetRadius(), viewProjectionMatrix, viewportMatrix, player->GetColor());
 
-		DrawSphere(player->GetAnchorPosition(), player->GetRadius(), viewProjectionMatrix, viewportMatrix, player->GetColor());
+		DrawSphere(player->GetAnchorPosition(), player->GetRadius(), viewProjectionMatrix, viewportMatrix, 0xFFFFFFFF);
 
 		// ImGui
 		ImGui::Begin("Debug Controller");
