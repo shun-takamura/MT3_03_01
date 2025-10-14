@@ -18,33 +18,8 @@
 
 const char kWindowTitle[] = "LC1C_14_タカムラシュン_タイトル";
 
-typedef struct Spring {
-	Vector3 anchor;
-	float naturelLendth;
-	float stiffness;
-	float dempingCoefficient;
-}Spring;
-
-typedef struct Ball {
-	Vector3 position;
-	Vector3 velocity;
-	Vector3 acceleration;
-	float decelerationRate;
-	float mass;
-	float radius;
-	unsigned int color;
-}Ball;
-
-// Pendulum構造体
-struct Pendulum {
-	Vector3 anchor;            // 固定された端の位置
-	float length;              // 紐の長さ
-	float angle;               // 現在の角度（ラジアン）
-	float angularVelocity;     // 角速度
-	float angularVelocityMax;
-	float angularAcceleration; // 角加速度
-	unsigned int color;
-};
+#include "Player.h"
+#include "Pendulum.h"
 
 // 行列をベクトルに変換する関数
 Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix);
@@ -178,54 +153,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	char keys[256] = { 0 };
 	char preKeys[256] = { 0 };
 
-	Ball ball{};
-	ball.position = { 0.0f,0.2f,0.0f };
-	ball.decelerationRate = 0.98f;
-	ball.mass = 2.0f;
-	ball.radius = 0.05f;
-	ball.color = 0xFF0000FF;
-	float kickStrength = 1.5f; // 蹴りの強さ
-
 	float deltaTime = 1.0f / 60.0f;
-
-	// ひもが切れたかどうか
-	bool isCut = false;
-	// 切れた後のボールの速度
-	Vector3 ballVelocity{ 0.0f, 0.0f, 0.0f };
-
-	// 初期化
-	Pendulum pendulum;
-	pendulum.anchor = { 0.0f, 1.0f, 0.0f };
-	pendulum.length = 0.8f;
-	pendulum.angle = 0.0f;              // 初期角度
-	pendulum.angularVelocity = 0.0f;
-	pendulum.angularAcceleration = 0.0f;
-	pendulum.angularVelocityMax = 30.0f;
-	pendulum.color = 0xFFFFFFFF;
-
-	int strokeCount = 0;
-
-	// 打球位置の履歴管理
-	Vector3 lastAnchorPos = pendulum.anchor;
-	Vector3 prevAnchorPos = pendulum.anchor;
-
-	// 減衰係数（小さいほど長く揺れる、大きいほどすぐ止まる）
-	float damping = 0.25f;
-
-	Vector3 rotate{ 0.0f,0.0f,0.0f };
-	Vector3 translate{ 0.0f,0.0f,0.0f };
 
 	Vector3 cameraRotate = { 0.0f, 0.0f, 0.0f };
 	Vector3 cameraTranslate = { 0.0f,0.0f, -10.0f };
 
 	// カメラ初期化のところに追加
 	Vector3 baseCameraTranslate = cameraTranslate;  // 現在のカメラ基準位置
-	Vector3 anchorAtCut;                            // 切断時のアンカー位置（基準）
+	//Vector3 anchorAtCut;                            // 切断時のアンカー位置（基準）
 
-	Vector3 cameraTarget = pendulum.anchor;// カメラの注視点
-	Vector3 targetGoal = pendulum.anchor; // カメラが次に向かう座標
 	float cameraLerpSpeed = 0.05f;         // 0.05〜0.2くらいで調整
-
 	Vector3 cameraOffset = { 0.0f,0.0f,-10.0f };
 
 	// 壁の位置の初期化
@@ -233,6 +170,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	const float wallXMax = 5.0f;
 	const float wallYMin = -1.0f;
 	const float wallYMax = 10.0f;
+
+	Player* player = new Player();
+	player->Initialize();
 
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
@@ -243,12 +183,29 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		memcpy(preKeys, keys, 256);
 		Novice::GetHitKeyStateAll(keys);
 
+		Vector3 targetGoal;
+		Vector3 cameraTarget;
+
 		///
 		/// ↓更新処理ここから
 		///
 
-		// カメラの処理
 
+		player->Update(keys,preKeys,deltaTime);
+
+		if (!player->GetIsCut()) {
+			// カメラの注視点をアンカーに設定
+			targetGoal = player->GetAnchorPosition();
+			cameraTarget = player->GetAnchorPosition();// カメラの注視点
+
+		} else {
+
+			targetGoal = player->GetPosition();
+			cameraTarget = player->GetPosition();
+		}
+
+		
+		// カメラの処理
 		cameraTranslate = cameraTarget + cameraOffset;
 
 		cameraTarget = Leap(cameraTarget, targetGoal, cameraLerpSpeed);
@@ -261,147 +218,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Matrix4x4 viewProjectionMatrix = Multiply(viewMatrix, projectionMatrix);
 		Matrix4x4 viewportMatrix = MakeViewportMatrix(0, 0, 1280, 720, 0.0f, 1.0f);
 
-		if (!isCut) {
-			// カメラの注視点をアンカーに設定
-			targetGoal = pendulum.anchor;
-
-			// --- 振り子フェーズ ---
-			if (keys[DIK_SPACE] && !preKeys[DIK_SPACE]) {
-				pendulum.angularVelocity += kickStrength;
-			}
-
-			if (pendulum.angularVelocity >= pendulum.angularVelocityMax) {
-				pendulum.angularVelocity = pendulum.angularVelocityMax;
-			}
-
-			// --- 振り子の角加速度（減衰込み）---
-			pendulum.angularAcceleration =
-				(-9.8f / pendulum.length) * sinf(pendulum.angle)
-				- damping * pendulum.angularVelocity;
-
-			// --- 角速度と角度を更新 ---
-			pendulum.angularVelocity += pendulum.angularAcceleration * deltaTime;
-			pendulum.angle += pendulum.angularVelocity * deltaTime;
-
-			// --- 振り子先端の位置を更新 ---
-			ball.position.x = pendulum.anchor.x + sinf(pendulum.angle) * pendulum.length;
-			ball.position.y = pendulum.anchor.y - cosf(pendulum.angle) * pendulum.length;
-			ball.position.z = pendulum.anchor.z;
-
-			// --- Rキーでロープ切断 ---
-			if (keys[DIK_R] && !preKeys[DIK_R]) {
-
-				// --- 打球履歴を更新 ---
-				prevAnchorPos = lastAnchorPos;
-				lastAnchorPos = pendulum.anchor;
-
-				// 打数加算
-				strokeCount++;
-
-				// 接線速度を計算
-				float speedX = pendulum.angularVelocity * pendulum.length * cosf(pendulum.angle);
-				float speedY = pendulum.angularVelocity * pendulum.length * sinf(pendulum.angle);
-				ballVelocity = { speedX, speedY, 0.0f };
-
-				anchorAtCut = pendulum.anchor;
-				baseCameraTranslate = cameraTranslate;
-
-				targetGoal = ball.position;
-				isCut = true;
-			}
-
-		} else {
-
-			targetGoal = ball.position;
-
-			// 慣性移動前の位置を保存
-			Vector3 prevPos = ball.position;
-
-			// 慣性移動
-			ball.position = ball.position + ballVelocity * deltaTime;
-
-			// ---- カプセル形状での壁衝突判定 ----
-			Vector3 walls[4][2] = {
-				{ {wallXMin, wallYMin, 0.0f}, {wallXMin, wallYMax, 0.0f} }, // 左壁
-				{ {wallXMax, wallYMin, 0.0f}, {wallXMax, wallYMax, 0.0f} }, // 右壁
-				{ {wallXMin, wallYMin, 0.0f}, {wallXMax, wallYMin, 0.0f} }, // 下壁
-				{ {wallXMin, wallYMax, 0.0f}, {wallXMax, wallYMax, 0.0f} }  // 上壁
-			};
-
-			for (int i = 0; i < 4; i++) {
-				if (CapsuleIntersectsSegment3D(prevPos, ball.position, ball.radius, walls[i][0], walls[i][1])) {
-
-					// 反射軸を求める
-					Vector3 normal{ 0,0,0 };
-					switch (i) {
-					case 0: normal = { 1, 0, 0 }; break;  // 左壁
-					case 1: normal = { -1, 0, 0 }; break; // 右壁
-					case 2: normal = { 0, 1, 0 }; break;  // 下壁
-					case 3: normal = { 0, -1, 0 }; break; // 上壁
-					}
-
-					// ボールを前フレーム位置に戻して反射
-					ball.position = prevPos;
-
-					// 速度を反射方向へ変換
-					float dotN = Dot(ballVelocity, normal);
-					ballVelocity = ballVelocity - 2.0f * dotN * normal;
-
-					break; // 1枚の壁に当たったら他はスキップ
-				}
-			}
-
-
-			// 慣性方向に減速
-			ballVelocity = ballVelocity * ball.decelerationRate;
-
-			// ある程度小さくなったら停止
-			if (Length(ballVelocity) < 0.05f) {
-
-				// --- 壁外チェック（OB処理） ---
-				bool isOutOfBounds = (
-					ball.position.x < wallXMin || ball.position.x > wallXMax ||
-					ball.position.y < wallYMin || ball.position.y > wallYMax
-					);
-
-				if (isOutOfBounds) {
-					// ペナルティ +1
-					strokeCount++;
-
-					// 1打前の位置に戻す（4打目→5打目がOBのとき4打目位置へ）
-					pendulum.anchor = prevAnchorPos;
-					ball.position = { pendulum.anchor.x,pendulum.anchor.y - pendulum.length,0.0f };
-
-					// 状態リセット
-					ballVelocity = { 0.0f, 0.0f, 0.0f };
-					pendulum.angle = 0.0f;
-					pendulum.angularVelocity = 0.0f;
-					pendulum.angularAcceleration = 0.0f;
-					isCut = false;
-					targetGoal = pendulum.anchor;
-
-				} else {
-
-					ballVelocity = { 0.0f, 0.0f, 0.0f };
-
-					// 新しいアンカー位置を設定（ボールの上方向にpendulum.length）
-					pendulum.anchor = {
-						ball.position.x,
-						ball.position.y + pendulum.length,
-						ball.position.z
-					};
-
-					// 初期角度・速度をリセット
-					pendulum.angle = 0.0f;
-					pendulum.angularVelocity = 0.0f;
-					pendulum.angularAcceleration = 0.0f;
-
-					targetGoal = pendulum.anchor;
-
-					isCut = false;  // 再び振り子フェーズに戻る
-				}
-			}
-		}
+		baseCameraTranslate = cameraTranslate;
 
 		///
 		/// ↑更新処理ここまで
@@ -428,30 +245,30 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			Novice::DrawLine((int)p1.x, (int)p1.y, (int)p2.x, (int)p2.y, 0x00FF00FF);
 		}
 
-		DrawSphere(ball.position, ball.radius, viewProjectionMatrix, viewportMatrix, ball.color);
+		DrawSphere(player->GetPosition(), player->GetRadius(), viewProjectionMatrix, viewportMatrix, player->GetColor());
 
-		DrawSphere(pendulum.anchor, ball.radius, viewProjectionMatrix, viewportMatrix, pendulum.color);
+		DrawSphere(player->GetAnchorPosition(), player->GetRadius(), viewProjectionMatrix, viewportMatrix, player->GetColor());
 
 		// ImGui
 		ImGui::Begin("Debug Controller");
 
 		// 表示のみ
 		ImGui::Text("Current Values:");
-		ImGui::Text("Pendulum Velocity: %.2f", pendulum.angularVelocity);
-		ImGui::Text("Ball Position: X = %.2f, Y = %.2f", ball.position.x, ball.position.y);
-		ImGui::Text("Stroke Count: %d", strokeCount);
+		//ImGui::Text("Pendulum Velocity: %.2f", pendulum.angularVelocity);
+		//ImGui::Text("Ball Position: X = %.2f, Y = %.2f", ball.position.x, ball.position.y);
+		//ImGui::Text("Stroke Count: %d", strokeCount);
 		ImGui::Separator();
 
 		// 変数調整
 		ImGui::Text("Editable Parameters:");
-		ImGui::InputFloat("AngularVelocityMax", &pendulum.angularVelocityMax, 1.0f, 50.0f);
-		ImGui::InputFloat("Length", &pendulum.length, 0.1f, 2.0f);
-		ImGui::InputFloat("KickStrength", &kickStrength, 1.0f, 5.0f);
-		ImGui::InputFloat("DecelerationRate", &ball.decelerationRate, 0.5f, 1.0f);
+		//ImGui::InputFloat("AngularVelocityMax", &pendulum.angularVelocityMax, 1.0f, 50.0f);
+		//ImGui::InputFloat("Length", &pendulum.length, 0.1f, 2.0f);
+		//ImGui::InputFloat("KickStrength", &kickStrength, 1.0f, 5.0f);
+		//ImGui::InputFloat("DecelerationRate", &ball.decelerationRate, 0.5f, 1.0f);
 		ImGui::Separator();
 
 		// リセットボタン
-		if (ImGui::Button("Reset Position")) {
+		/*if (ImGui::Button("Reset Position")) {
 			ball.position = { 0.0f, 0.2f, 0.0f };
 			pendulum.anchor = { 0.0f, 1.0f, 0.0f };
 			ballVelocity = { 0.0f, 0.0f, 0.0f };
@@ -460,7 +277,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			pendulum.angularAcceleration = 0.0f;
 			isCut = false;
 			targetGoal = pendulum.anchor;
-		}
+		}*/
 
 		ImGui::End();
 
