@@ -60,6 +60,10 @@ Matrix4x4 Add(Matrix4x4 matrix1, Matrix4x4 matrix2);
 
 Matrix4x4 Subtract(Matrix4x4 matrix1, Matrix4x4 matrix2);
 
+float Length(const Vector3& v);
+
+Vector3 Normalize(const Vector3& v);
+
 // 内積
 float Dot(const Vector3& v1, const Vector3& v2);
 
@@ -72,7 +76,11 @@ Matrix4x4 MakeRotateYMatrix(Vector3 rotate);
 
 Matrix4x4 MakeRotateZMatrix(Vector3 rotate);
 
-Matrix4x4 MakeRotateMatrix(Quaternion rotate);
+Quaternion MakeRotateAxisAngleQuaternion(const Vector3& axis, float angle);
+
+Vector3 RotateVector(const Vector3& vector, const Quaternion& quaternion);
+
+Matrix4x4 MakeRotateMatrix(const Quaternion& quaternion);
 
 Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix);
 
@@ -95,15 +103,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	char keys[256] = { 0 };
 	char preKeys[256] = { 0 };
 
-	Quaternion q1 = { 2.0f,3.0f,4.0f,1.0f };
-	Quaternion q2 = { 1.0f,3.0f,5.0f,2.0f };
-	Quaternion identity = IdentityQuaternion();
-	Quaternion conj = Conjugate(q1);
-	Quaternion inv = Inverse(q1);
-	Quaternion normal = Normalize(q1);
-	Quaternion mul1 = Multiply(q1, q2);
-	Quaternion mul2 = Multiply(q2, q1);
-	float norm = Norm(q1);
+	Quaternion rotation = MakeRotateAxisAngleQuaternion(
+		Normalize(Vector3{ 1.0f,0.4f,-0.2f }), 0.45f
+	);
+
+	Vector3 pointY = { 2.1f,-0.9f,1.3f };
+	Matrix4x4 rotateMatrix = MakeRotateMatrix(rotation);
+	Vector3 rotateByWuaternion = RotateVector(pointY, rotation);
+	Vector3 rotateByMatrix = Transform(pointY, rotateMatrix);
 
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
@@ -128,13 +135,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓描画処理ここから
 		///
 
-		QuaternionScreenPrintf(0, 0, identity, "Identity");
-		QuaternionScreenPrintf(0, kRowHeight * 1, conj, "Conjugate");
-		QuaternionScreenPrintf(0, kRowHeight * 2, inv, "Inverse");
-		QuaternionScreenPrintf(0, kRowHeight * 3, normal, "Normalize");
-		QuaternionScreenPrintf(0, kRowHeight * 4, mul1, "Multiply(q1,q2)");
-		QuaternionScreenPrintf(0, kRowHeight * 5, mul2, "Multiply(q2,q1)");
-		Novice::ScreenPrintf(0, kRowHeight * 6, "%2.2f", norm);
+		QuaternionScreenPrintf(0, kRowHeight * 0, rotation, ":rotation");
 
 		///
 		/// ↑描画処理ここまで
@@ -332,6 +333,24 @@ Matrix4x4 Subtract(Matrix4x4 matrix1, Matrix4x4 matrix2)
 	result.m[3][3] = matrix1.m[3][3] - matrix2.m[3][3];
 
 	return result;
+}
+
+float Length(const Vector3& v)
+{
+	float length;
+
+	length = sqrtf(powf(v.x, 2.0f) + powf(v.y, 2.0f) + powf(v.z, 2.0f));
+
+	return length;
+}
+
+Vector3 Normalize(const Vector3& v)
+{
+	Vector3 normalizedV;
+
+	normalizedV = { v.x / Length(v),v.y / Length(v),v.z / Length(v) };
+
+	return normalizedV;
 }
 
 float Dot(const Vector3& v1, const Vector3& v2)
