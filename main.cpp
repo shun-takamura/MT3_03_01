@@ -176,6 +176,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	float cameraLerpSpeed = 0.05f;         // 0.05〜0.2くらいで調整
 	Vector3 cameraOffset = { 0.0f,0.0f,-10.0f };
 
+	Vector3 bumperPos = { 0.0f, 5.0f, 0.0f }; // バンパー位置
+	float bumperRadius = 0.5f;
+
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
 		// フレームの開始
@@ -246,6 +249,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		DrawSphere(player->GetPosition(), player->GetRadius(), viewProjectionMatrix, viewportMatrix, player->GetColor());
 
 		DrawSphere(player->GetAnchorPosition(), player->GetRadius(), viewProjectionMatrix, viewportMatrix, 0xFFFFFFFF);
+
+		DrawSphere(bumperPos, bumperRadius , viewProjectionMatrix, viewportMatrix, 0x00FF00FF);
 
 		// ImGui
 		ImGui::Begin("Debug Controller");
