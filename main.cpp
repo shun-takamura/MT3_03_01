@@ -32,6 +32,12 @@ typedef struct Quaternion {
 // Quaternionの積
 Quaternion Multiply(const Quaternion& lhs, const Quaternion& rhs);
 
+// Quaternionのスカラー倍
+Quaternion Scaler(const float& scale, const Quaternion& quaternion);
+
+// Quaternionの加算
+Quaternion Add(const Quaternion& q0, const Quaternion& q1);
+
 // 単位Quaternionを返す
 Quaternion IdentityQuaternion();
 
@@ -46,6 +52,9 @@ Quaternion Normalize(const Quaternion& quaternion);
 
 // 逆Quaternionを返す(これをかけると単位クオータニオンができる)
 Quaternion Inverse(const Quaternion& quaternion);
+
+// 球面線形補間
+Quaternion Slerp(const Quaternion& q0, const Quaternion& q1, float t);
 
 // Quaternionの内容を画面に表示する関数
 void QuaternionScreenPrintf(int x, int y, const Quaternion& q, const char* label);
@@ -70,6 +79,8 @@ Vector3 Normalize(const Vector3& v);
 
 // 内積
 float Dot(const Vector3& v1, const Vector3& v2);
+
+float Dot(const Quaternion& q0, const Quaternion& q1);
 
 // クロス積
 Vector3 Cross(const Vector3& v1, const Vector3& v2);
@@ -107,12 +118,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	char keys[256] = { 0 };
 	char preKeys[256] = { 0 };
 
-	Quaternion rotation = MakeRotateAxisAngleQuaternion({ 1.0f,0.4f,-0.2f }, 0.45f);
+	Quaternion rotation0 = MakeRotateAxisAngleQuaternion({ 0.71f,0.71f,0.0f }, 0.3f);
+	Quaternion rotation1 = MakeRotateAxisAngleQuaternion({ 0.71f,0.0f,0.71f }, 3.141592f);
 
-	Vector3 pointY = { 2.1f,-0.9f,1.3f };
-	Matrix4x4 rotateMatrix = MakeRotateMatrix(rotation);
-	Vector3 rotateByQuaternion = RotateVector(pointY, rotation);
-	Vector3 rotateByMatrix = Transform(pointY, rotateMatrix);
+	Quaternion interpolate0 = Slerp(rotation0, rotation1, 0.0f);
+	Quaternion interpolate1 = Slerp(rotation0, rotation1, 0.3f);
+	Quaternion interpolate2 = Slerp(rotation0, rotation1, 0.5f);
+	Quaternion interpolate3 = Slerp(rotation0, rotation1, 0.7f);
+	Quaternion interpolate4 = Slerp(rotation0, rotation1, 1.0f);
 
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
@@ -137,10 +150,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓描画処理ここから
 		///
 
-		QuaternionScreenPrintf(0, kRowHeight * 0, rotation, ":rotation");
-		MatrixScreenPrintf(0, kRowHeight * 2, rotateMatrix);
-		VectorScreenPrintf(0, kRowHeight * 7, rotateByQuaternion);
-		VectorScreenPrintf(0, kRowHeight * 8, rotateByMatrix);
+		QuaternionScreenPrintf(0, kRowHeight * 0, interpolate0, ":interpolate0");
+		QuaternionScreenPrintf(0, kRowHeight * 1, interpolate1, ":interpolate1");
+		QuaternionScreenPrintf(0, kRowHeight * 2, interpolate2, ":interpolate2");
+		QuaternionScreenPrintf(0, kRowHeight * 3, interpolate3, ":interpolate3");
+		QuaternionScreenPrintf(0, kRowHeight * 4, interpolate4, ":interpolate4");
+		
 
 		///
 		/// ↑描画処理ここまで
@@ -181,6 +196,24 @@ Quaternion Multiply(const Quaternion& lhs, const Quaternion& rhs)
 	result.x = imaginaryResult.x;
 	result.y = imaginaryResult.y;
 	result.z = imaginaryResult.z;
+
+	return result;
+}
+
+Quaternion Scaler(const float& scale, const Quaternion& quaternion)
+{
+	Quaternion result;
+
+	result = { quaternion.x * scale,quaternion.y * scale, quaternion.z * scale, quaternion.w * scale };
+
+	return result;
+}
+
+Quaternion Add(const Quaternion& q0, const Quaternion& q1)
+{
+	Quaternion result;
+
+	result = { q0.x + q1.x,q0.y + q1.y, q0.z + q1.z, q0.w + q1.w };
 
 	return result;
 }
@@ -241,6 +274,37 @@ Quaternion Inverse(const Quaternion& quaternion)
 		conj.z / powf(norm,2.0f),
 		conj.w / powf(norm,2.0f)
 	};
+
+	return result;
+}
+
+Quaternion Slerp(const Quaternion& q0, const Quaternion& q1, float t)
+{
+	Quaternion result;
+	Quaternion copyQ0;
+
+	copyQ0 = q0;
+
+	float dot = Dot(q0, q1);
+
+	if (dot < 0) {
+
+		copyQ0 = { -q0.x,-q0.y, -q0.z, -q0.w };
+
+		dot = -dot;
+	}
+
+	// なす角を求める
+	float theta = std::acos(dot);
+
+	// thetaとsinを使って補間係数scale0,scale1を求める
+	float sinTheta = sinf(theta);
+
+	float scale0 = sinf((1.0f - t) * theta) / sinTheta;
+	float scale1 = sinf(t * theta) / sinf(theta);
+
+	// それぞれの補間係数を利用して補間後のQuaternionを求める
+	result = Add(Scaler(scale0, copyQ0), Scaler(scale1, q1));
 
 	return result;
 }
@@ -382,6 +446,15 @@ float Dot(const Vector3& v1, const Vector3& v2)
 	resoult = v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
 
 	return resoult;
+}
+
+float Dot(const Quaternion& q0, const Quaternion& q1)
+{
+	float result;
+
+	result = q0.x * q1.x + q0.y * q1.y + q0.z * q1.z + q0.w * q1.w;
+
+	return result;
 }
 
 Vector3 Cross(const Vector3& v1, const Vector3& v2)
