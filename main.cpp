@@ -163,10 +163,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	//Vector3 anchorAtCut;                            // 切断時のアンカー位置（基準）
 
 	// 壁の位置の初期化
-	const float wallXMin = -5.0f;
-	const float wallXMax = 5.0f;
+	const float wallXMin = -7.5f;
+	const float wallXMax = 7.5f;
 	const float wallYMin = -1.0f;
-	const float wallYMax = 10.0f;
+	const float wallYMax = 14.0f;
 
 	Player* player = new Player();
 	player->Initialize();
